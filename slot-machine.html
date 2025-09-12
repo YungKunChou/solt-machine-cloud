@@ -551,86 +551,84 @@
             const exportCsvBtn = document.getElementById('export-csv-btn');
             const themeSwitcher = document.getElementById('theme-switcher');
             const themeButtons = document.querySelectorAll('.theme-btn');
-            
-// ↓↓↓ 把這些「連線版新變數」貼在這裡 ↓↓↓
-let myPlayerId = null;          // 用來儲存我們自己的連線ID
-let currentTurnPlayerId = null; // 記錄現在輪到誰
-let currentParticipantName = null; // 當前回合玩家輸入的姓名
 
-// ↓↓↓ 把「連接大腦」與「監聽指令」的程式碼貼在這裡 ↓↓↓
-// ★★★ 1. 連線到遊戲大腦 ★★★
-// ↓↓↓ 請務必換成您部署後的後端伺服器網址 ↓↓↓
-const backendUrl = 'https://solt-machine.onrender.com';
-// const socket = io(backendUrl);
-const urlParams = new URLSearchParams(window.location.search);
-const roomId = urlParams.get('room');
+// ↓↓↓ 用這個打包好的新函式，替換掉您剛剛剪下的所有連線程式碼 ↓↓↓
 
-// 如果網址沒有房間號碼，就顯示錯誤訊息
-if (!roomId) {
-    document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
-    return;
-}
+// ★★★ 這是一個新的「工具包」，裡面放了所有連線相關的功能 ★★★
+function initializeMultiplayer() {
+    // ★★★ 1. 連線到遊戲大腦 ★★★
+    const backendUrl = 'https://solt-machine.onrender.com'; // 請確認這是您正確的後端網址
+    const socket = io(backendUrl);
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room');
 
-// ★★★ 2. 監聽來自大腦的訊息 ★★★
-socket.on('connect', () => {
-    myPlayerId = socket.id;
-    console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
-    socket.emit('joinRoom', roomId); // 連上後，立刻跟大腦說我要加入房間
+    // 如果網址沒有房間號碼，就顯示錯誤訊息
+    if (!roomId) {
+        document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
+        return;
+    }
 
-    // 在計分板上顯示房間資訊和 QR Code
-    document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
-    document.getElementById('room-url-input').value = window.location.href;
-    new QRCode(document.getElementById('qrcode'), window.location.href);
-});
+    // ★★★ 2. 監聽來自大腦的訊息 ★★★
+    socket.on('connect', () => {
+        myPlayerId = socket.id;
+        console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
+        socket.emit('joinRoom', roomId);
 
-socket.on('updateRoomState', (roomState) => {
-    console.log("收到房間狀態更新:", roomState);
-    currentTurnPlayerId = roomState.queue[0]; // 更新現在輪到誰
-
-    const queueList = document.getElementById('queue-list');
-    const participantNameInput = document.getElementById('participant-name');
-    const drawStatus = document.getElementById('draw-status');
-
-    // 更新計分板上的排隊列表
-    queueList.innerHTML = '';
-    roomState.queue.forEach((playerId, index) => {
-        const li = document.createElement('li');
-        let text = `第 ${index + 1} 位玩家`;
-        if (playerId === myPlayerId) {
-            text += ' (你)';
-            li.style.fontWeight = 'bold';
-            li.classList.add('text-green-500');
-        }
-        li.textContent = text;
-        queueList.appendChild(li);
+        document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
+        document.getElementById('room-url-input').value = window.location.href;
+        new QRCode(document.getElementById('qrcode'), window.location.href);
     });
 
-    // 根據是不是輪到自己，來決定輸入框和提示文字的狀態
-    if (currentTurnPlayerId === myPlayerId) {
-        participantNameInput.disabled = false;
-        participantNameInput.value = '';
-        participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
-        drawStatus.textContent = "輪到你了！請輸入姓名！";
-        // 重設滾輪狀態
-        reelStates.prize.hasBeenSpun = false;
-        reelStates.quantity.hasBeenSpun = false;
-    } else {
-        participantNameInput.disabled = true;
-        participantNameInput.placeholder = "等待其他玩家...";
-        drawStatus.textContent = `現在輪到第 1 位玩家...`;
-    }
-});
+    socket.on('updateRoomState', (roomState) => {
+        console.log("收到房間狀態更新:", roomState);
+        currentTurnPlayerId = roomState.queue[0];
 
-socket.on('newWinner', (newWinner) => {
-    // 收到大腦廣播的新得獎者，就更新到畫面上
-    winners.push(newWinner);
-    renderWinners();
-    slotWindow.classList.add('winner-flash');
-    setTimeout(() => slotWindow.classList.remove('winner-flash'), 4000);
-});
+        const queueList = document.getElementById('queue-list');
+        const participantNameInput = document.getElementById('participant-name');
+        const drawStatus = document.getElementById('draw-status');
 
-socket.on('error', (msg) => alert('錯誤：' + msg));
+        queueList.innerHTML = '';
+        roomState.queue.forEach((playerId, index) => {
+            const li = document.createElement('li');
+            let text = `第 ${index + 1} 位玩家`;
+            if (playerId === myPlayerId) {
+                text += ' (你)';
+                li.style.fontWeight = 'bold';
+                li.classList.add('text-green-500');
+            }
+            li.textContent = text;
+            queueList.appendChild(li);
+        });
 
+        if (currentTurnPlayerId === myPlayerId) {
+            participantNameInput.disabled = false;
+            participantNameInput.value = '';
+            participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
+            drawStatus.textContent = "輪到你了！請輸入姓名！";
+            reelStates.prize.hasBeenSpun = false;
+            reelStates.quantity.hasBeenSpun = false;
+        } else {
+            participantNameInput.disabled = true;
+            participantNameInput.placeholder = "等待其他玩家...";
+            drawStatus.textContent = `現在輪到第 1 位玩家...`;
+        }
+    });
+
+    socket.on('newWinner', (newWinner) => {
+        winners.push(newWinner);
+        renderWinners();
+        slotWindow.classList.add('winner-flash');
+        setTimeout(() => slotWindow.classList.remove('winner-flash'), 4000);
+    });
+
+    socket.on('error', (msg) => alert('錯誤：' + msg));
+
+    // ★★★ 3. 我們把接收滾輪結果的監聽器也放進這個工具包裡 ★★★
+    socket.on('spinResult', (data) => {
+        console.log("收到拉霸結果:", data);
+        triggerSpinAnimation(data.type, data.result);
+    });
+}            
 
             let player;
             window.onYouTubeIframeAPIReady = function() {
@@ -891,6 +889,8 @@ socket.on('spinResult', (data) => {
 
             loadTheme();
             renderAll();
+            initializeMultiplayer(); // <-- 在所有東西都準備好後，才啟動連線功能
+
         });
     </script>
     <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
