@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雙滾輪互動抽獎活動</title>
 
- // 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
@@ -562,7 +561,7 @@ let currentParticipantName = null; // 當前回合玩家輸入的姓名
 // ★★★ 1. 連線到遊戲大腦 ★★★
 // ↓↓↓ 請務必換成您部署後的後端伺服器網址 ↓↓↓
 const backendUrl = 'https://solt-machine.onrender.com';
-const socket = io(backendUrl);
+// const socket = io(backendUrl);
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room');
 
