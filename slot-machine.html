@@ -3,20 +3,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雙滾輪互動抽獎活動 (連線版)</title>
+    <title>雙滾輪互動抽獎活動</title>
+  
+/* 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」 */
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  /* 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」 */
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* 您原本的 CSS 樣式，這裡保持不變 */
         body {
             font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
             background-color: #F8F7F5;
             color: #4A4A4A;
             transition: background-color 0.5s ease, color 0.5s ease;
         }
-        /* ... 省略了您所有的 CSS，它們都保留著 ... */
+
+        /* 主容器和區塊樣式 */
+        .section-container {
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+            border: 1px solid #EAEAEA;
+            transition: all 0.5s ease;
+        }
+
+        h2 {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-weight: 500;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #EAEAEA;
+            color: #333;
+            transition: color 0.5s ease, border-color 0.5s ease;
+        }
+        h3 {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-weight: 500;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #EAEAEA;
+            color: #333;
+        }
+
+        /* 按鈕樣式 */
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-primary {
+            background-color: #8D7B68;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #A4907C;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.1);
+        }
+        .btn-secondary {
+            background-color: #EFEFEF;
+            color: #4A4A4A;
+        }
+        .btn-secondary:hover {
+            background-color: #E0E0E0;
+        }
+        .btn-danger {
+            background-color: #D9534F;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #C9302C;
+        }
+
+        /* 輸入框樣式 */
+        .input-field {
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+            width: 100%;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #8D7B68;
+            box-shadow: 0 0 0 3px rgba(141, 123, 104, 0.2);
+        }
+
+        /* --- START: 拉霸機樣式 --- */
+        #slot-machine-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 2rem;
+            perspective: 1000px; /* 為 3D 動畫增加透視效果 */
+        }
+        .slot-machine {
+            position: relative;
+            width: 600px;
+            height: 600px; /* 根據圖片比例調整 */
+            background-image: url('slot-machine.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .slot-window-wrapper {
+            position: absolute;
+            top: 26.9%;
+            left: 19.4%;
+            width: 60%;
+            height: 26.2%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .slot-window {
+            width: 100%;
+            height: 100%;
+            background-color: rgba(248, 247, 245, 0.9);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid #333;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            display: flex;
+        }
+        .slot-window::before, .slot-window::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20%;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+        }
+        .slot-window::after {
+            top: auto;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+        }
+        
+        .reel-container {
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+        #prize-reel-container {
+            width: 66.66%;
+            border-right: 2px solid rgba(0,0,0,0.3);
+        }
+        #quantity-reel-container {
+            width: 33.33%;
+        }
+
+        .slot-reel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        .reel-item {
+            width: 100%;
+            height: 76px; /* 視窗高度 / 3 */
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-bottom: 2px dashed rgba(0,0,0,0.2);
+            color: #333;
+            padding: 0 20px;
+        }
+        .quantity-item {
+            font-size: 2.5rem;
+            justify-content: center;
+        }
+        .reel-item svg {
+            width: 55px;
+            height: 55px;
+            margin-right: 15px;
+        }
+        .lever {
+            position: absolute;
+            top: 34%;
+            width: 80px;
+            height: 125px;
+            cursor: pointer;
+            transform-origin: 50% 100%;
+            transform-style: preserve-3d; 
+        }
+        #lever-right {
+            right: 9%;
+        }
+        #lever-left {
+            left: 8%;
+        }
+
+        .lever-arm {
+            width: 12px;
+            height: 100px;
+            background: linear-gradient(to right, #ccc, #777);
+            border-radius: 10px;
+            position: absolute;
+            bottom: 0;
+            left: 34px;
+            transform-origin: bottom center;
+            transition: transform 0.4s ease-in-out;
+            transform-style: preserve-3d;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+        }
+        .lever-ball {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 10px 10px, #FF6B6B, #C41E3A);
+            border-radius: 50%;
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: inset 3px 3px 5px rgba(255,255,255,0.4), inset -3px -3px 5px rgba(0,0,0,0.4);
+            transition: transform 0.4s ease-in-out;
+        }
+        .lever.pulled .lever-arm {
+            transform: rotateX(-60deg);
+        }
+        .lever.pulled .lever-ball {
+            transform: translateX(-50%) rotateX(60deg) scale(1.25);
+        }
+        @keyframes red-flash {
+            0%, 100% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0), 0 0 10px rgba(255,0,0,0); }
+            50% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0.7), 0 0 40px 10px rgba(255,0,0,0.7); }
+        }
+        .winner-flash {
+            animation: red-flash 0.5s 6;
+        }
+        /* --- END: 拉霸機樣式 --- */
+
+
+        /* Modal 樣式 */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            transition: background-color 0.5s ease;
+        }
+        
+        .list-item > div, #winners-table > div {
+            padding: 1rem;
+            border-bottom: 1px solid #F3F4F6;
+        }
+         .list-item > div:last-child, #winners-table > div:last-child {
+            border-bottom: none;
+        }
+
+        .theme-btn.active {
+            background-color: #8D7B68;
+            color: white;
+            box-shadow: 0 6px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        /* --- ASUS ROG THEME --- */
+        .theme-rog body {
+            font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+        }
+        .theme-rog .section-container {
+            background-color: rgba(26, 26, 30, 0.85);
+            border: 1px solid #ff003c;
+            box-shadow: 0 0 15px rgba(255, 0, 60, 0.3), inset 0 0 10px rgba(255, 0, 60, 0.2);
+        }
+        .theme-rog header h1, .theme-rog .modal-content h3 {
+            color: #FFF;
+            text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 15px #ff003c;
+        }
+        .theme-rog h2, .theme-rog h3 {
+            color: #ff003c;
+            border-bottom-color: #ff003c;
+        }
+        .theme-rog #prize-management h3 {
+            font-family: 'Noto Sans JP', sans-serif;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        .theme-rog .btn-primary {
+            background: linear-gradient(45deg, #e60032, #ff4c6b);
+        }
+        .theme-rog .btn-primary:hover {
+            background: linear-gradient(45deg, #ff4c6b, #e60032);
+        }
+        .theme-rog .input-field {
+            background-color: #1a1a1a;
+            border: 1px solid #555;
+            color: #E0E0E0;
+        }
+        .theme-rog .input-field:focus {
+            border-color: #ff003c;
+            box-shadow: 0 0 0 3px rgba(255, 0, 60, 0.4);
+        }
+        .theme-rog .slot-window {
+            background-color: rgba(10, 10, 10, 0.9);
+        }
+        .theme-rog #prize-reel-container {
+            border-right-color: rgba(255,0,60,0.4);
+        }
+        .theme-rog .reel-item {
+            color: #E0E0E0;
+            border-bottom-color: rgba(255,0,60,0.4);
+        }
+        .theme-rog .list-item span {
+            color: #E0E0E0;
+        }
+        .theme-rog .slot-window::before {
+             background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+         .theme-rog .slot-window::after {
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        }
+
+        .theme-rog .modal-content {
+            background-color: #2a2a2a;
+            border: 1px solid #ff003c;
+        }
+        .theme-rog #winners-table-container, .theme-rog #prize-management .grid > div {
+             background-color: rgba(0,0,0,0.2);
+             padding: 1.5rem;
+             border-radius: 8px;
+        }
+         .theme-rog #winners-table-container {
+            padding: 0;
+         }
+        .theme-rog .list-item > div, .theme-rog #winners-table > div {
+            border-bottom-color: #333;
+            color: #f5f5f5;
+        }
+        .theme-rog #winners-table-container > div:first-child {
+            background-color: #111;
+            padding: 1rem;
+        }
+        .theme-rog .theme-btn.active {
+            background: linear-gradient(45deg, #e60032, #ff4c6b);
+            border: 1px solid #ff4c6b;
+            color: white;
+        }
+        .theme-rog .btn-danger {
+            background: linear-gradient(45deg, #e60032, #ff4c6b);
+            color: white;
+            border: 1px solid #ff4c6b;
+        }
         .theme-rog .btn-danger:hover {
             background: linear-gradient(45deg, #ff4c6b, #e60032);
             box-shadow: 0 4px 8px rgba(0,0,0,0.6), 0 0 10px #ff4c6b;
@@ -46,11 +409,13 @@
         <div id="prize-management" class="section-container">
             <h2>獎項與數量設定</h2>
             <div class="grid md:grid-cols-2 gap-8">
+                <!-- 左半部: 獎項設定 -->
                 <div>
                     <h3>獎項項目</h3>
                     <div id="prize-list" class="list-item mb-4"></div>
                     <button id="add-prize-btn" class="btn btn-primary">＋ 新增獎項</button>
                 </div>
+                <!-- 右半部: 數量設定 -->
                 <div>
                     <h3>數量選項</h3>
                     <div id="quantity-list" class="list-item mb-4"></div>
@@ -65,15 +430,18 @@
                 <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
-            
-            <div id="room-info" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
-                <h3 id="room-id-display" class="font-bold text-lg mb-2"></h3>
-                <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
-                <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
-                <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded"></div>
-                <h4 class="font-bold mt-2">排隊列表</h4>
-                <ol id="queue-list" class="list-decimal list-inside"></ol>
-            </div>
+
+  /* 加入「計分板」 */
+<div id="room-info" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
+    <h3 id="room-id-display" class="font-bold text-lg mb-2"></h3>
+    <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
+    <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
+    <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded"></div>
+    <h4 class="font-bold mt-2">排隊列表</h4>
+    <ol id="queue-list" class="list-decimal list-inside"></ol>
+</div>
+  /* 加入「計分板」 */
+
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
                     <div class="slot-window-wrapper">
@@ -132,34 +500,113 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
     <script>
-        // STEP 3: 全新的遊戲說明書 (JavaScript)
-        // 我已經將你的原始碼與連線邏輯整合在一起了
         document.addEventListener('DOMContentLoaded', () => {
-            // ★★★ 1. 連線到遊戲大腦 ★★★
-            // ↓↓↓ 請務必換成你部署後的後端伺服器網址 ↓↓↓
-            const backendUrl = 'https://your-slot-backend.onrender.com';
-            const socket = io(backendUrl);
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomId = urlParams.get('room');
-
             let prizes = [
-                { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' },
-                { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' }
+                { name: '大杯美式咖啡' },
+                { name: '特大美式咖啡' },
+                { name: '大杯拿鐵咖啡' },
+                { name: '特大拿鐵咖啡' },
+                { name: '星巴克焦糖瑪奇朵' }
             ];
-            let quantities = [ { name: '1' }, { name: '2' }, { name: '3' } ];
-            let winners = [];
-            
-            // --- 連線版新增的狀態變數 ---
-            let currentTurnPlayerId = null; // 現在輪到誰
-            let myPlayerId = null;          // 我自己的ID
-            let currentParticipantName = null; // 當前回合玩家的姓名
-            let hasSpunPrize = false;       // 當前回合是否轉過獎項
-            let hasSpunQuantity = false;    // 當前回合是否轉過數量
+            let quantities = [
+                { name: '1' },
+                { name: '2' },
+                { name: '3' },
+                { name: '2' },
+                { name: '1' }
+            ];
 
-            // --- 這是你原本的 DOM 元素，全部保留 ---
+            let winners = [];
+            let drawnNames = new Set();
+            let currentParticipant = null;
+
+            const reelStates = {
+                prize: { isSpinning: false, isStopping: false, spinEndListener: null, finalResult: null, hasBeenSpun: false },
+                quantity: { isSpinning: false, isStopping: false, spinEndListener: null, finalResult: null, hasBeenSpun: false }
+            };
+
+// ↓↓↓ 把這些「連線版新變數」貼在這裡 ↓↓↓
+let myPlayerId = null;          // 用來儲存我們自己的連線ID
+let currentTurnPlayerId = null; // 記錄現在輪到誰
+let currentParticipantName = null; // 當前回合玩家輸入的姓名
+
+// ↓↓↓ 把「連接大腦」與「監聽指令」的程式碼貼在這裡 ↓↓↓
+// ★★★ 1. 連線到遊戲大腦 ★★★
+// ↓↓↓ 請務必換成您部署後的後端伺服器網址 ↓↓↓
+const backendUrl = 'https://solt-machine.onrender.com';
+const socket = io(backendUrl);
+const urlParams = new URLSearchParams(window.location.search);
+const roomId = urlParams.get('room');
+
+// 如果網址沒有房間號碼，就顯示錯誤訊息
+if (!roomId) {
+    document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
+    return;
+}
+
+// ★★★ 2. 監聽來自大腦的訊息 ★★★
+socket.on('connect', () => {
+    myPlayerId = socket.id;
+    console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
+    socket.emit('joinRoom', roomId); // 連上後，立刻跟大腦說我要加入房間
+
+    // 在計分板上顯示房間資訊和 QR Code
+    document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
+    document.getElementById('room-url-input').value = window.location.href;
+    new QRCode(document.getElementById('qrcode'), window.location.href);
+});
+
+socket.on('updateRoomState', (roomState) => {
+    console.log("收到房間狀態更新:", roomState);
+    currentTurnPlayerId = roomState.queue[0]; // 更新現在輪到誰
+
+    const queueList = document.getElementById('queue-list');
+    const participantNameInput = document.getElementById('participant-name');
+    const drawStatus = document.getElementById('draw-status');
+
+    // 更新計分板上的排隊列表
+    queueList.innerHTML = '';
+    roomState.queue.forEach((playerId, index) => {
+        const li = document.createElement('li');
+        let text = `第 ${index + 1} 位玩家`;
+        if (playerId === myPlayerId) {
+            text += ' (你)';
+            li.style.fontWeight = 'bold';
+            li.classList.add('text-green-500');
+        }
+        li.textContent = text;
+        queueList.appendChild(li);
+    });
+
+    // 根據是不是輪到自己，來決定輸入框和提示文字的狀態
+    if (currentTurnPlayerId === myPlayerId) {
+        participantNameInput.disabled = false;
+        participantNameInput.value = '';
+        participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
+        drawStatus.textContent = "輪到你了！請輸入姓名！";
+        // 重設滾輪狀態
+        reelStates.prize.hasBeenSpun = false;
+        reelStates.quantity.hasBeenSpun = false;
+    } else {
+        participantNameInput.disabled = true;
+        participantNameInput.placeholder = "等待其他玩家...";
+        drawStatus.textContent = `現在輪到第 1 位玩家...`;
+    }
+});
+
+socket.on('newWinner', (newWinner) => {
+    // 收到大腦廣播的新得獎者，就更新到畫面上
+    winners.push(newWinner);
+    renderWinners();
+    slotWindow.classList.add('winner-flash');
+    setTimeout(() => slotWindow.classList.remove('winner-flash'), 4000);
+});
+
+socket.on('error', (msg) => alert('錯誤：' + msg));
+
+            // --- DOM 元素 ---
             const prizeList = document.getElementById('prize-list');
             const quantityList = document.getElementById('quantity-list');
             const addPrizeBtn = document.getElementById('add-prize-btn');
@@ -171,131 +618,43 @@
             const modalItemType = document.getElementById('modal-item-type');
             const modalItemIndex = document.getElementById('modal-item-index');
             const modalItemName = document.getElementById('item-name');
+            
             const participantNameInput = document.getElementById('participant-name');
             const drawStatus = document.getElementById('draw-status');
+            
             const leverLeft = document.getElementById('lever-left');
             const leverRight = document.getElementById('lever-right');
             const prizeReel = document.getElementById('prize-reel');
             const quantityReel = document.getElementById('quantity-reel');
             const slotWindow = document.getElementById('slot-window');
+
             const winnersTable = document.getElementById('winners-table');
             const exportCsvBtn = document.getElementById('export-csv-btn');
             const themeSwitcher = document.getElementById('theme-switcher');
             const themeButtons = document.querySelectorAll('.theme-btn');
-            // --- 連線版新增的 DOM 元素 ---
-            const roomIdDisplay = document.getElementById('room-id-display');
-            const roomUrlInput = document.getElementById('room-url-input');
-            const qrcodeContainer = document.getElementById('qrcode');
-            const queueList = document.getElementById('queue-list');
             
-            // 如果沒有房間號碼，就顯示錯誤訊息
-            if (!roomId) {
-                document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
-                return;
-            }
-
-            // ★★★ 2. 監聽來自大腦的訊息 ★★★
-            socket.on('connect', () => {
-                myPlayerId = socket.id;
-                console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
-                socket.emit('joinRoom', roomId);
-                roomIdDisplay.textContent = `房間號碼: ${roomId}`;
-                roomUrlInput.value = window.location.href;
-                new QRCode(qrcodeContainer, window.location.href);
-            });
-
-            socket.on('updateRoomState', (roomState) => {
-                console.log("收到房間狀態更新:", roomState);
-                currentTurnPlayerId = roomState.queue[0];
-                
-                // 更新排隊列表
-                queueList.innerHTML = '';
-                roomState.queue.forEach((playerId, index) => {
-                    const li = document.createElement('li');
-                    let text = `第 ${index + 1} 位玩家`;
-                    if (playerId === myPlayerId) {
-                        text += ' (你)';
-                        li.style.fontWeight = 'bold';
-                        li.classList.add('text-green-500');
-                    }
-                    li.textContent = text;
-                    queueList.appendChild(li);
-                });
-
-                // 更新狀態提示
-                if (currentTurnPlayerId === myPlayerId) {
-                    hasSpunPrize = false;
-                    hasSpunQuantity = false;
-                    participantNameInput.disabled = false;
-                    participantNameInput.value = '';
-                    participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
-                    drawStatus.textContent = "輪到你了！請輸入姓名！";
-                } else {
-                    participantNameInput.disabled = true;
-                    participantNameInput.placeholder = "等待其他玩家...";
-                    drawStatus.textContent = `現在輪到第 1 位玩家...`;
-                }
-            });
-
-            socket.on('spinResult', (data) => {
-                console.log("收到拉霸結果:", data);
-                // 用大腦給的結果來啟動對應滾輪的動畫
-                triggerSpinAnimation(data.type, data.result);
-                if (data.type === 'prize') hasSpunPrize = true;
-                if (data.type === 'quantity') hasSpunQuantity = true;
-            });
-            
-            socket.on('newWinner', (newWinner) => {
-                winners.push(newWinner);
-                renderWinners();
-                slotWindow.classList.add('winner-flash');
-                setTimeout(() => slotWindow.classList.remove('winner-flash'), 4000);
-            });
-            
-            socket.on('error', (msg) => alert(msg));
-
-
-            // ★★★ 3. 修改後的拉霸與輸入邏輯 ★★★
-            participantNameInput.addEventListener('change', () => {
-                const name = participantNameInput.value.trim();
-                if (!name) return;
-                currentParticipantName = name;
-                drawStatus.textContent = `你好, ${name}！請拉動拉桿！`;
-                participantNameInput.disabled = true;
-            });
-
-            function handleSpin(type) {
-                if (currentTurnPlayerId !== myPlayerId) {
-                    drawStatus.textContent = '還沒輪到你喔！';
-                    return;
-                }
-                if (!currentParticipantName) {
-                    drawStatus.textContent = '請先輸入並確認姓名！';
-                    return;
-                }
-                if ((type === 'prize' && hasSpunPrize) || (type === 'quantity' && hasSpunQuantity)) {
-                    drawStatus.textContent = '這個滾輪你已經轉過了！';
-                    return;
-                }
-                
-                // 通知大腦我們要轉動哪個滾輪
-                console.log(`通知大腦，我要轉動 ${type} 滾輪`);
-                socket.emit('spin', { roomId, type, playerName: currentParticipantName });
-                
-                // 立即播放拉桿動畫
-                (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
-                drawStatus.textContent = '祝您好運！';
-            }
-            leverLeft.addEventListener('click', () => handleSpin('prize'));
-            leverRight.addEventListener('click', () => handleSpin('quantity'));
-
-
-            // ★★★ 4. 保留大部分你原本的函式，但做微調 ★★★
-            // 你原本的 modal, theme, music, export CSV 等功能都保留
             let player;
-            window.onYouTubeIframeAPIReady = function() { /* ... YouTube 邏輯保留 ... */ };
-            document.getElementById('toggle-music-btn').addEventListener('click', () => { /* ... 音樂邏輯保留 ... */ });
-            const getPrizeIcon = (name) => { /* ... icon 邏輯保留 ... */ };
+            window.onYouTubeIframeAPIReady = function() {
+                player = new YT.Player('youtube-player', { height: '0', width: '0', playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', index: 4, loop: 1 }, events: { 'onReady': (event) => { event.target.setVolume(50); } } });
+            };
+            document.getElementById('toggle-music-btn').addEventListener('click', () => {
+                const btn = document.getElementById('toggle-music-btn');
+                if (player.getPlayerState() === 1) {
+                    player.pauseVideo();
+                    btn.textContent = '🔇 開啟背景音樂';
+                } else {
+                    player.playVideo();
+                    btn.textContent = '🔊 關閉背景音樂';
+                }
+            });
+
+            const getPrizeIcon = (name) => {
+                 if (name.includes('美式')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5V15a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8H16V5h2ZM4,5H14v9a.44.44,0,0,1,0,.13V15H4Z M4,19h16v2H4Z"/></svg>`;
+                if (name.includes('拿鐵') || name.includes('瑪奇朵')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5v8a4,4,0,0,0,4,4h6a4,4,0,0,0,4-4V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8h-2V5h2Zm-4,4H6a2,2,0,0,1-2-2V5H14ZM4,19h16v2H4Z M10,6a2.5,2.5,0,0,0-5,0,2.4,2.4,0,0,0,.5,1.5L9,11l3.5-3.5A2.4,2.4,0,0,0,13,6a2.5,2.5,0,0,0-3,0Z"/></svg>`;
+                if (name.includes('星巴克') || name.includes('點心')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16,5V4a2,2,0,0,0-2-2H4A2,2,0,0,0,2,4v8a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2v-.17a3,3,0,0,1,2,0V12a2,2,0,0,0,2,2h0a2,2,0,0,0,2-2V7a2,2,0,0,0-2-2ZM14,12H4V4h10ZM20,12h0Z M22.7,15.21a1,1,0,0,0-1.13-.23,6,6,0,0,1-7.14,0,1,1,0,0,0-1.13.23,1,1,0,0,0,.24,1.12,8,8,0,0,0,9.52,0A1,1,0,0,0,22.7,15.21Z M17,18a3,3,0,0,0,3,3,3,3,0,0,0,2.12-.88A3,3,0,0,0,17,18Z"/></svg>`;
+                return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5,6h-4.34a3,3,0,0,0-5.32,0H3.5a1,1,0,0,0-1,1V20.5a1,1,0,0,0,1,1h17a1,1,0,0,0,1-1V7A1,1,0,0,0,20.5,6ZM12,4a1,1,0,0,1,1,1,1,1,0,0,1-2,0A1,1,0,0,1,12,4Zm7.5,15.5h-15V8h3.33a3,3,0,0,0,5.34,0H19.5Z M13,11H11v4h2Zm-3,0h2v2H10Zm6,0h-2v2h2Z"/></svg>`;
+            };
+
             function renderAll() {
                 renderPrizes();
                 renderQuantities();
@@ -303,62 +662,234 @@
                 renderQuantityReel();
                 renderWinners();
             }
-            function renderList(list, listEl, type) { /* ... 列表渲染邏輯保留 ... */ }
+
+            function renderList(list, listEl, type) {
+                listEl.innerHTML = list.length ? '' : `<p class="text-gray-500 text-sm">尚未設定任何${type === 'prize' ? '獎項' : '數量'}。</p>`;
+                list.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'flex justify-between items-center';
+                    itemEl.innerHTML = `
+                        <span class="font-semibold text-lg">${item.name}</span>
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary btn-sm edit-btn" data-type="${type}" data-index="${index}">編輯</button>
+                            <button class="btn btn-danger btn-sm delete-btn" data-type="${type}" data-index="${index}">刪除</button>
+                        </div>`;
+                    listEl.appendChild(itemEl);
+                });
+            }
             const renderPrizes = () => renderList(prizes, prizeList, 'prize');
             const renderQuantities = () => renderList(quantities, quantityList, 'quantity');
-            function renderPrizeReel() { /* ... 獎項滾輪渲染邏輯保留 ... */ }
-            function renderQuantityReel() { /* ... 數量滾輪渲染邏輯保留 ... */ }
-            function renderWinners() { /* ... 得獎者渲染邏輯保留 ... */ }
-            function openItemModal(type, index = null) { /* ... Modal 邏輯保留 ... */ }
+            
+            function renderPrizeReel() {
+                if (prizes.length === 0) {
+                    prizeReel.innerHTML = `<div class="reel-item" style="height: 100%; color: red; justify-content: center;">請先設定獎項</div>`;
+                    return;
+                }
+                const shuffledPrizes = [...prizes].sort(() => Math.random() - 0.5);
+                const repeatCount = Math.max(10, Math.ceil(60 / prizes.length));
+                const displayItems = Array(repeatCount).fill(shuffledPrizes).flat();
+                prizeReel.innerHTML = displayItems.map(prize => `
+                    <div class="reel-item" data-name="${prize.name}">
+                        ${getPrizeIcon(prize.name)}<span>${prize.name}</span>
+                    </div>`).join('');
+            }
+            
+            function renderQuantityReel() {
+                const shuffledQuantities = [...quantities].sort(() => Math.random() - 0.5);
+                const repeatCount = Math.max(10, Math.ceil(60 / quantities.length));
+                const displayItems = Array(repeatCount).fill(shuffledQuantities).flat();
+                quantityReel.innerHTML = displayItems.map(q => `<div class="reel-item quantity-item" data-name="${q.name}">${q.name}</div>`).join('');
+            }
+
+            function renderWinners() {
+                winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
+                winners.forEach(winner => {
+                    const row = document.createElement('div');
+                    row.className = 'grid grid-cols-3';
+                    row.innerHTML = `<div>${winner.name}</div><div>${winner.prize}</div><div class="text-center">${winner.quantity}</div>`;
+                    winnersTable.appendChild(row);
+                });
+            }
+
+            function openItemModal(type, index = null) {
+                itemForm.reset();
+                const list = type === 'prize' ? prizes : quantities;
+                modalTitle.textContent = `${index !== null ? '編輯' : '新增'}${type === 'prize' ? '獎項' : '數量'}`;
+                modalItemType.value = type;
+                if (index !== null) {
+                    modalItemIndex.value = index;
+                    modalItemName.value = list[index].name;
+                } else {
+                    modalItemIndex.value = '';
+                }
+                modalItemName.type = type === 'quantity' ? 'number' : 'text';
+                itemModal.classList.remove('hidden');
+            }
+
             addPrizeBtn.addEventListener('click', () => openItemModal('prize'));
             addQuantityBtn.addEventListener('click', () => openItemModal('quantity'));
             cancelModalBtn.addEventListener('click', () => itemModal.classList.add('hidden'));
-            function handleListClick(e) { /* ... 列表點擊邏輯保留 ... */ }
-            prizeList.addEventListener('click', handleListClick);
-            quantityList.addEventListener('click', handleListClick);
-            itemForm.addEventListener('submit', (e) => { /* ... 表單提交邏輯保留 ... */ });
-            exportCsvBtn.addEventListener('click', () => { /* ... CSV 匯出邏輯保留 ... */ });
-            function applyTheme(theme) { /* ... 主題切換邏輯保留 ... */ }
-            themeSwitcher.addEventListener('click', (e) => { /* ... 主題切換邏輯保留 ... */ });
-            function loadTheme() { /* ... 主題讀取邏輯保留 ... */ }
-            
-            // 這是我新增的動畫函式，用來接收大腦的指令並播放動畫
-            function triggerSpinAnimation(type, finalResultName) {
-                const reelEl = type === 'prize' ? prizeReel : quantityReel;
-                const leverEl = type === 'prize' ? leverLeft : leverRight;
-                const allItemsOnReel = Array.from(reelEl.querySelectorAll('.reel-item'));
-                const itemHeight = allItemsOnReel[0]?.offsetHeight || 76;
-                const windowHeight = reelEl.parentElement.offsetHeight;
 
-                // 找到結果在滾輪中的位置
-                let targetIndex = -1;
-                for (let i = 5; i < allItemsOnReel.length; i++) { // 從第5個開始找，避免太快停
-                    if (allItemsOnReel[i].dataset.name === finalResultName) {
-                        targetIndex = i;
-                        break;
+            function handleListClick(e) {
+                if (e.target.classList.contains('edit-btn')) {
+                    openItemModal(e.target.dataset.type, e.target.dataset.index);
+                }
+                if (e.target.classList.contains('delete-btn')) {
+                    const { type, index } = e.target.dataset;
+                    const list = type === 'prize' ? prizes : quantities;
+                    const itemName = list[index].name;
+                    if (confirm(`確定要刪除 "${itemName}" 嗎？`)) {
+                        list.splice(index, 1);
+                        renderAll();
                     }
                 }
-                if (targetIndex === -1) { // 如果找不到，隨機選一個
-                    targetIndex = Math.floor(Math.random() * 10) + 5;
-                }
-                
-                const targetPosition = targetIndex * itemHeight;
-                const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
-
-                reelEl.style.transition = 'none';
-                reelEl.style.transform = 'translateY(0px)';
-                void reelEl.offsetWidth;
-
-                const spinDuration = 3000 + Math.random() * 1000;
-                reelEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                reelEl.style.transform = `translateY(-${centeredPosition}px)`;
-                
-                setTimeout(() => {
-                    leverEl.classList.remove('pulled');
-                }, spinDuration - 500);
             }
+            prizeList.addEventListener('click', handleListClick);
+            quantityList.addEventListener('click', handleListClick);
             
-            // 頁面初次載入時執行的函式
+            itemForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = modalItemName.value.trim();
+                const type = modalItemType.value;
+                const index = modalItemIndex.value;
+                const list = type === 'prize' ? prizes : quantities;
+
+                if (index) { // Edit
+                    list[index] = { name };
+                } else { // Add
+                    list.push({ name });
+                }
+                itemModal.classList.add('hidden');
+                renderAll();
+            });
+
+// ↓↓↓ 用這段新的程式碼，替換掉上面刪除的舊版 ↓↓↓
+participantNameInput.addEventListener('change', () => {
+    const name = participantNameInput.value.trim();
+    if (!name) return;
+
+    // 我們把玩家輸入的姓名，存在一個暫時的變數裡
+    currentParticipantName = name;
+    drawStatus.textContent = `你好, ${name}！請拉動拉桿！`;
+    participantNameInput.disabled = true; // 輸入後就鎖定，直到這回合結束
+});            
+
+// ↓↓↓ 用這兩段新的函式，替換掉刪除的四個舊版函式 ↓↓↓
+
+// 新的 handleSpin 函式：只負責通知大腦
+function handleSpin(type) {
+    // 檢查是不是輪到自己
+    if (currentTurnPlayerId !== myPlayerId) {
+        drawStatus.textContent = '還沒輪到你喔！';
+        return;
+    }
+    // 檢查是不是已經輸入姓名
+    if (!currentParticipantName) {
+        drawStatus.textContent = '請先輸入並確認姓名！';
+        return;
+    }
+    // 檢查這個滾輪是不是已經轉過了
+    const state = reelStates[type];
+    if (state.hasBeenSpun) {
+        drawStatus.textContent = '這個滾輪你已經抽過了喔！';
+        return;
+    }
+
+    // 標記這個滾輪為已轉動，防止重複點擊
+    state.hasBeenSpun = true;
+
+    // 通知大腦我們要轉動哪個滾輪，並附上玩家姓名
+    console.log(`通知大腦，我要轉動 ${type} 滾輪`);
+    socket.emit('spin', { roomId, type, playerName: currentParticipantName });
+
+    // 立即播放拉桿動畫，讓玩家有回饋感
+    (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
+    drawStatus.textContent = '祝您好運！';
+}
+
+// 新的 triggerSpinAnimation 函式：負責接收大腦指令並播放動畫
+function triggerSpinAnimation(type, finalResultName) {
+    const reelEl = type === 'prize' ? prizeReel : quantityReel;
+    const leverEl = type === 'prize' ? leverLeft : leverRight;
+    const allItemsOnReel = Array.from(reelEl.querySelectorAll('.reel-item'));
+    if (allItemsOnReel.length === 0) return;
+
+    const itemHeight = allItemsOnReel[0].offsetHeight;
+    const windowHeight = reelEl.parentElement.offsetHeight;
+
+    // 尋找大腦指定的結果在滾輪中的哪個位置
+    let targetIndex = -1;
+    // 我們從一個比較後面的位置開始找，讓滾輪能轉久一點
+    for (let i = 10; i < allItemsOnReel.length; i++) {
+        if (allItemsOnReel[i].dataset.name === finalResultName) {
+            targetIndex = i;
+            break;
+        }
+    }
+    // 如果找不到完全一樣的，就隨機選一個，避免畫面卡住
+    if (targetIndex === -1) { 
+        targetIndex = Math.floor(Math.random() * 20) + 10;
+    }
+
+    // 計算滾輪要停下來的最終 Y 軸位置
+    const targetPosition = targetIndex * itemHeight;
+    // 再微調，讓結果剛好停在視窗正中間
+    const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+
+    // 設定動畫效果並啟動
+    const spinDuration = 3000 + Math.random() * 1000; // 隨機的轉動時間
+    reelEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
+    reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+
+    // 在動畫快結束時，讓拉桿彈回去
+    setTimeout(() => {
+        leverEl.classList.remove('pulled');
+    }, spinDuration - 500);
+}
+
+// 我們還需要一個新的 socket 監聽器，專門用來接收滾輪的結果
+socket.on('spinResult', (data) => {
+    console.log("收到拉霸結果:", data);
+    // 用大腦給的結果來啟動對應滾輪的動畫
+    triggerSpinAnimation(data.type, data.result);
+});            
+
+            leverLeft.addEventListener('click', () => handleSpin('prize'));
+            leverRight.addEventListener('click', () => handleSpin('quantity'));
+
+            exportCsvBtn.addEventListener('click', () => {
+                if (winners.length === 0) return;
+                let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
+                csvContent += '得獎人,獎項,數量\n';
+                winners.forEach(row => {
+                    csvContent += `${row.name},${row.prize},${row.quantity}\n`;
+                });
+                const link = document.createElement('a');
+                link.setAttribute('href', encodeURI(csvContent));
+                link.setAttribute('download', '雙渦輪得獎名單.csv');
+                link.click();
+            });
+            
+            function applyTheme(theme) {
+                document.body.classList.toggle('theme-rog', theme === 'rog');
+
+                themeButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.theme === theme);
+                });
+                localStorage.setItem('lotteryTheme', theme);
+            }
+
+            themeSwitcher.addEventListener('click', (e) => {
+                if (e.target.classList.contains('theme-btn')) {
+                    applyTheme(e.target.dataset.theme);
+                }
+            });
+
+            function loadTheme() {
+                const savedTheme = localStorage.getItem('lotteryTheme') || 'default';
+                applyTheme(savedTheme);
+            }
+
             loadTheme();
             renderAll();
         });
@@ -366,3 +897,7 @@
     <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
+
+
+
+
