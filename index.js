@@ -1,83 +1,97 @@
-// index.js
+// index.js (升級版) - 支援雙滾輪
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); // 允許跨來源請求
+app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*", // 在生產環境中應指定前端網址
-        methods: ["GET", "POST"]
-    }
-});
+const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-// 儲存所有遊戲房間的狀態 (暫時存在記憶體中，未來可改用資料庫)
-const gameRooms = {};
+const gameRooms = {}; // 筆記本，記錄所有房間
 
-app.get('/', (req, res) => {
-    res.send('<h1>拉霸機後端伺服器已啟動</h1>');
-});
-
-// 建立一個新的遊戲房間 API
+// 建立房間 (這部分不變)
 app.post('/create-room', (req, res) => {
     const roomId = `room_${Math.random().toString(36).substr(2, 6)}`;
     gameRooms[roomId] = {
         id: roomId,
-        dealer: '莊家ID', // 之後可以加上莊家資訊
-        players: [],
-        queue: [], // 遊戲排隊列表
-        currentPlayer: null,
+        players: {}, // 改成物件，方便用 id 查找
+        queue: [],
+        currentTurnData: { prize: null, quantity: null, playerName: null }
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
 });
 
 io.on('connection', (socket) => {
-    console.log('一位使用者已連線:', socket.id);
+    console.log('一位玩家連線:', socket.id);
 
-    // 監聽 'joinRoom' 事件
     socket.on('joinRoom', (roomId) => {
         if (gameRooms[roomId]) {
             socket.join(roomId);
-            gameRooms[roomId].players.push(socket.id); // 將玩家加入列表
-            gameRooms[roomId].queue.push(socket.id); // 將玩家加入排隊
-
-            console.log(`使用者 ${socket.id} 加入了房間 ${roomId}`);
-
-            // 通知房間內所有人，更新的房間狀態
-            io.to(roomId).emit('updateRoomState', gameRooms[roomId]);
+            const room = gameRooms[roomId];
+            room.players[socket.id] = { id: socket.id };
+            room.queue.push(socket.id);
+            console.log(`玩家 ${socket.id} 加入了房間 ${roomId}`);
+            io.to(roomId).emit('updateRoomState', { queue: room.queue });
         } else {
             socket.emit('error', '房間不存在');
         }
     });
 
-    // 監聽 'spin' 事件 (由當前玩家觸發)
-    socket.on('spin', (roomId) => {
+    // ★★★ 升級版的 spin 邏輯 ★★★
+    socket.on('spin', ({ roomId, type, playerName }) => {
         const room = gameRooms[roomId];
-        // 檢查是否為當前玩家
+        // 檢查是否輪到這位玩家
         if (room && room.queue[0] === socket.id) {
-            // 產生隨機結果
-            const result = [Math.floor(Math.random() * 5), Math.floor(Math.random() * 5), Math.floor(Math.random() * 5)];
-            // 通知房間內所有人結果
-            io.to(roomId).emit('spinResult', { player: socket.id, result: result });
+            console.log(`玩家 ${socket.id} 正在轉動 ${type} 滾輪`);
+            
+            // 這裡我們讓大腦隨機決定結果
+            // 注意：在真實應用中，獎項和數量列表應該從後端管理
+            const prizes = ['大杯美式咖啡', '特大美式咖啡', '大杯拿鐵咖啡', '特大拿鐵咖啡', '星巴克焦糖瑪奇朵'];
+            const quantities = ['1', '2', '3'];
+            let result = '';
+            if (type === 'prize') {
+                result = prizes[Math.floor(Math.random() * prizes.length)];
+                room.currentTurnData.prize = result;
+                room.currentTurnData.playerName = playerName;
+            } else if (type === 'quantity') {
+                result = quantities[Math.floor(Math.random() * quantities.length)];
+                room.currentTurnData.quantity = result;
+            }
 
-            // 輪到下一位玩家
-            const finishedPlayer = room.queue.shift(); // 移除隊首玩家
-            room.queue.push(finishedPlayer); // 將其加到隊尾
-
-            // 再次通知房間更新狀態
-            io.to(roomId).emit('updateRoomState', room);
+            // 把結果只告訴按下的那個人
+            io.to(socket.id).emit('spinResult', { type, result });
+            
+            // 檢查是否兩個都轉完了
+            if (room.currentTurnData.prize && room.currentTurnData.quantity) {
+                const winnerData = {
+                    name: room.currentTurnData.playerName,
+                    prize: room.currentTurnData.prize,
+                    quantity: room.currentTurnData.quantity
+                };
+                
+                // 廣播新的得獎者
+                io.to(roomId).emit('newWinner', winnerData);
+                
+                // 輪到下一位
+                const finishedPlayer = room.queue.shift();
+                room.queue.push(finishedPlayer);
+                
+                // 重設當前回合數據
+                room.currentTurnData = { prize: null, quantity: null, playerName: null };
+                
+                // 廣播更新後的排隊狀態
+                setTimeout(() => {
+                    io.to(roomId).emit('updateRoomState', { queue: room.queue });
+                }, 4000); // 等待動畫結束後再更新
+            }
         }
     });
 
-    socket.on('disconnect', () => {
-        console.log('一位使用者已離線:', socket.id);
-        // 這裡需要加入邏輯：從所有房間中移除這位使用者
-    });
+    socket.on('disconnect', () => { /* ... 斷線邏輯 ... */ });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`伺服器正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (升級版) 正在監聽 port ${PORT}`));
