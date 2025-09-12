@@ -177,216 +177,303 @@
     </div>
 
     <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- 保險措施 ---
-    document.getElementById('item-modal').classList.add('hidden');
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 保險措施 ---
+        document.getElementById('item-modal').classList.add('hidden');
 
-    // --- 1. 公共變數布告欄 ---
-    // 單機版資料 (現在只作為初始預設值)
-    let prizes = [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ];
-    let quantities = [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' }, { name: '1' } ];
-    let winners = [];
-    
-    // 多人連線版需要的狀態
-    let socket = null;
-    let roomId = null;
-    let myPlayerId = null;
-    let currentTurnPlayerId = null;
-    let currentParticipantName = null;
-    let amIDealer = false; // 新增：用來判斷自己是不是莊家
-
-    // 滾輪狀態
-    const reelStates = {
-        prize: { hasBeenSpun: false },
-        quantity: { hasBeenSpun: false }
-    };
-
-    // --- 2. DOM 零件定義區 ---
-    const prizeList = document.getElementById('prize-list');
-    const quantityList = document.getElementById('quantity-list');
-    const addPrizeBtn = document.getElementById('add-prize-btn');
-    const addQuantityBtn = document.getElementById('add-quantity-btn');
-    const itemModal = document.getElementById('item-modal');
-    const cancelModalBtn = document.getElementById('cancel-modal-btn');
-    const itemForm = document.getElementById('item-form');
-    const modalTitle = document.getElementById('modal-title');
-    const modalItemType = document.getElementById('modal-item-type');
-    const modalItemIndex = document.getElementById('modal-item-index');
-    const modalItemName = document.getElementById('item-name');
-    const participantNameInput = document.getElementById('participant-name');
-    const drawStatus = document.getElementById('draw-status');
-    const leverLeft = document.getElementById('lever-left');
-    const leverRight = document.getElementById('lever-right');
-    const prizeReel = document.getElementById('prize-reel');
-    const quantityReel = document.getElementById('quantity-reel');
-    const slotWindow = document.getElementById('slot-window');
-    const winnersTable = document.getElementById('winners-table');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
-    const themeSwitcher = document.getElementById('theme-switcher');
-    const themeButtons = document.querySelectorAll('.theme-btn');
-    const roomUrlInput = document.getElementById('room-url-input');
-    const prizeManagementSection = document.getElementById('prize-management');
-    const winnersSection = document.getElementById('winners-section');
-    
-    // --- 3. 函式定義區 ---
-
-    // 【連線功能工具包】
-    function initializeMultiplayer() {
-        const backendUrl = 'https://solt-machine.onrender.com'; // ★★★ 請確認這是您正確的後端網址 ★★★
-        socket = io(backendUrl);
-        const urlParams = new URLSearchParams(window.location.search);
-        roomId = urlParams.get('room'); // 將 roomId 存到公共變數
-
-        if (!roomId) {
-            document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
-            return;
-        }
+        // --- 1. 變數宣告區 ---
+        // 單機版資料
+        let prizes = [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ];
+        let quantities = [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' }, { name: '1' } ];
+        let winners = [];
         
-        socket.on('connect', () => {
-            myPlayerId = socket.id;
-            console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
-            socket.emit('joinRoom', roomId);
-            roomUrlInput.value = window.location.href;
-            new QRCode(document.getElementById('qrcode'), window.location.href);
-            document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
-        });
+        // 單機版狀態
+        const reelStates = {
+            prize: { hasBeenSpun: false },
+            quantity: { hasBeenSpun: false }
+        };
+        
+        // (公共變數) 多人連線版需要的狀態
+        let socket = null;
+        let myPlayerId = null;
+        let currentTurnPlayerId = null;
+        let currentParticipantName = null;
 
-        socket.on('updateRoomState', (roomState) => {
-            console.log("收到房間狀態更新:", roomState);
-            
-            // 從大腦更新權威資料
-            prizes = roomState.prizes;
-            quantities = roomState.quantities;
-            currentTurnPlayerId = roomState.queue[0];
-            amIDealer = (myPlayerId === roomState.dealerId);
+        // --- 2. DOM 零件定義區 ---
+        const prizeList = document.getElementById('prize-list');
+        const quantityList = document.getElementById('quantity-list');
+        const addPrizeBtn = document.getElementById('add-prize-btn');
+        const addQuantityBtn = document.getElementById('add-quantity-btn');
+        const itemModal = document.getElementById('item-modal');
+        const cancelModalBtn = document.getElementById('cancel-modal-btn');
+        const itemForm = document.getElementById('item-form');
+        const modalTitle = document.getElementById('modal-title');
+        const modalItemType = document.getElementById('modal-item-type');
+        const modalItemIndex = document.getElementById('modal-item-index');
+        const modalItemName = document.getElementById('item-name');
+        const participantNameInput = document.getElementById('participant-name');
+        const drawStatus = document.getElementById('draw-status');
+        const leverLeft = document.getElementById('lever-left');
+        const leverRight = document.getElementById('lever-right');
+        const prizeReel = document.getElementById('prize-reel');
+        const quantityReel = document.getElementById('quantity-reel');
+        const slotWindow = document.getElementById('slot-window');
+        const winnersTable = document.getElementById('winners-table');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        const roomUrlInput = document.getElementById('room-url-input');
+        
+        // --- 3. 函式定義區 ---
+        // (所有函式，不論新舊，都先在這裡定義好)
 
-            // 根據身份，顯示或隱藏管理區塊
-            prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
-            winnersSection.style.display = amIDealer ? 'block' : 'none';
+        // 【連線功能工具包】
+        function initializeMultiplayer() {
+            // ★★★ 請務必換成您部署後的後端伺服器網址 ★★★
+            const backendUrl = 'https://solt-machine.onrender.com'; 
+            socket = io(backendUrl);
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+
+            if (!roomId) {
+                document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從 lobby.html 建立新遊戲。</h1>';
+                return;
+            }
             
-            const queueList = document.getElementById('queue-list');
-            queueList.innerHTML = '';
-            roomState.queue.forEach((playerId, index) => {
-                const player = roomState.players[playerId];
-                const playerName = player && player.name ? player.name : `玩家 #${index + 1}`;
-                const li = document.createElement('li');
-                let text = playerName;
-                if (playerId === myPlayerId) {
-                    text += ' (你)';
-                    li.style.fontWeight = 'bold';
-                    li.classList.add('text-green-500');
-                }
-                li.textContent = text;
-                queueList.appendChild(li);
+            socket.on('connect', () => {
+                myPlayerId = socket.id;
+                console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
+                socket.emit('joinRoom', roomId);
+                roomUrlInput.value = window.location.href;
+                new QRCode(document.getElementById('qrcode'), window.location.href);
+                document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
+                renderAll(); // 連線成功後，再渲染一次確保畫面正確
             });
-            
-            // 只有莊家不能玩拉霸，所以玩家都可以輸入姓名
-            participantNameInput.disabled = amIDealer;
-            
-            if (amIDealer) {
-                drawStatus.textContent = "您是莊家，負責主持活動";
-                participantNameInput.placeholder = "您是莊家";
-            } else if (currentTurnPlayerId === myPlayerId) {
-                drawStatus.textContent = "輪到你了！請拉動拉桿！";
-                participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
-                reelStates.prize.hasBeenSpun = false;
-                reelStates.quantity.hasBeenSpun = false;
-            } else {
-                drawStatus.textContent = `現在輪到 ${roomState.players[currentTurnPlayerId]?.name || '下一位玩家'}...`;
-                participantNameInput.placeholder = "等待輪到你...";
-            }
-            
-            renderAll(); // 收到大腦的權威資料後，重繪所有畫面
-        });
 
-        socket.on('newWinner', (newWinner) => { /* ... (此邏輯不變) ... */ });
-        socket.on('error', (msg) => alert('錯誤：' + msg));
-        socket.on('spinResult', (data) => { /* ... (此邏輯不變) ... */ });
-    }
+            socket.on('updateRoomState', (roomState) => {
+                console.log("收到房間狀態更新:", roomState);
+                currentTurnPlayerId = roomState.queue[0];
+                const queueList = document.getElementById('queue-list');
+                queueList.innerHTML = '';
+                roomState.queue.forEach((playerId, index) => {
+                    const li = document.createElement('li');
+                    let text = `第 ${index + 1} 位玩家`;
+                    if (playerId === myPlayerId) {
+                        text += ' (你)';
+                        li.style.fontWeight = 'bold';
+                        li.classList.add('text-green-500');
+                    }
+                    li.textContent = text;
+                    queueList.appendChild(li);
+                });
 
-    // 【拉霸核心邏輯函式】(新版)
-    function handleSpin(type) {
-        if (amIDealer) { drawStatus.textContent = '莊家不能玩喔！'; return; }
-        if (currentTurnPlayerId !== myPlayerId) { drawStatus.textContent = '還沒輪到你喔！'; return; }
-        if (!currentParticipantName) { drawStatus.textContent = '請先輸入並確認姓名！'; return; }
-        const state = reelStates[type];
-        if (state.hasBeenSpun) { drawStatus.textContent = '這個滾輪你已經抽過了喔！'; return; }
-        state.hasBeenSpun = true;
-        console.log(`通知大腦，我要轉動 ${type} 滾輪`);
-        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
-        (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
-        drawStatus.textContent = '祝您好運！';
-    }
-
-    // 【其他所有函式，包括 renderAll, openItemModal 等都保持不變，此處省略】
-    // ...
-    // --- 4. 事件綁定區 ---
-    // ...
-
-    // 【修改】Modal 表單提交事件：不再直接修改本地端資料，而是發送指令給大腦
-    itemForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (!amIDealer) return; // 只有莊家可以提交
-        
-        const name = modalItemName.value.trim();
-        if (!name) return;
-        const type = modalItemType.value;
-        const index = modalItemIndex.value;
-        const list = type === 'prize' ? prizes : quantities;
-
-        if (index) { // Edit
-            list[index] = { name };
-        } else { // Add
-            list.push({ name });
-        }
-        
-        // 將修改後的完整列表發送給大腦
-        if (type === 'prize') {
-            socket.emit('updatePrizes', { roomId, prizes: list });
-        } else {
-            socket.emit('updateQuantities', { roomId, quantities: list });
-        }
-        
-        itemModal.classList.add('hidden');
-    });
-
-    // 【修改】列表刪除事件：同樣發送指令給大腦
-    function handleListClick(e) {
-        if (!amIDealer) return;
-        if (e.target.classList.contains('edit-btn')) { /* ... (編輯邏輯不變) ... */ }
-        if (e.target.classList.contains('delete-btn')) {
-            const { type, index } = e.target.dataset;
-            const list = type === 'prize' ? prizes : quantities;
-            if (confirm(`確定要刪除 "${list[index].name}" 嗎？`)) { 
-                list.splice(index, 1);
-                // 將修改後的完整列表發送給大腦
-                if (type === 'prize') {
-                    socket.emit('updatePrizes', { roomId, prizes: list });
+                if (currentTurnPlayerId === myPlayerId) {
+                    participantNameInput.disabled = false;
+                    participantNameInput.value = '';
+                    participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
+                    drawStatus.textContent = "輪到你了！請輸入姓名！";
+                    reelStates.prize.hasBeenSpun = false;
+                    reelStates.quantity.hasBeenSpun = false;
                 } else {
-                    socket.emit('updateQuantities', { roomId, quantities: list });
+                    participantNameInput.disabled = true;
+                    participantNameInput.placeholder = "等待其他玩家...";
+                    drawStatus.textContent = `現在輪到第 1 位玩家...`;
+                }
+            });
+
+            socket.on('newWinner', (newWinner) => {
+                winners.push(newWinner);
+                renderWinners();
+                slotWindow.classList.add('winner-flash');
+                setTimeout(() => slotWindow.classList.remove('winner-flash'), 4000);
+            });
+
+            socket.on('error', (msg) => alert('錯誤：' + msg));
+
+            socket.on('spinResult', (data) => {
+                console.log("收到拉霸結果:", data);
+                triggerSpinAnimation(data.type, data.result);
+            });
+        }
+
+        // 【拉霸核心邏輯函式】(新版)
+        function handleSpin(type) {
+            if (currentTurnPlayerId !== myPlayerId) {
+                drawStatus.textContent = '還沒輪到你喔！'; return;
+            }
+            if (!currentParticipantName) {
+                drawStatus.textContent = '請先輸入並確認姓名！'; return;
+            }
+            const state = reelStates[type];
+            if (state.hasBeenSpun) {
+                drawStatus.textContent = '這個滾輪你已經抽過了喔！'; return;
+            }
+            state.hasBeenSpun = true;
+            console.log(`通知大腦，我要轉動 ${type} 滾輪`);
+            socket.emit('spin', { roomId: urlParams.get('room'), type, playerName: currentParticipantName });
+            (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
+            drawStatus.textContent = '祝您好運！';
+        }
+
+        // 【拉霸動畫函式】(新版)
+        function triggerSpinAnimation(type, finalResultName) {
+            const reelEl = type === 'prize' ? prizeReel : quantityReel;
+            const leverEl = type === 'prize' ? leverLeft : leverRight;
+            const allItemsOnReel = Array.from(reelEl.querySelectorAll('.reel-item'));
+            if (allItemsOnReel.length === 0) return;
+            const itemHeight = allItemsOnReel[0].offsetHeight;
+            const windowHeight = reelEl.parentElement.offsetHeight;
+            let targetIndex = -1;
+            for (let i = 10; i < allItemsOnReel.length; i++) {
+                if (allItemsOnReel[i].dataset.name === finalResultName) {
+                    targetIndex = i;
+                    break;
                 }
             }
+            if (targetIndex === -1) { 
+                targetIndex = Math.floor(Math.random() * 20) + 10;
+            }
+            const targetPosition = targetIndex * itemHeight;
+            const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+            const spinDuration = 3000 + Math.random() * 1000;
+            reelEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
+            reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+            setTimeout(() => {
+                leverEl.classList.remove('pulled');
+            }, spinDuration - 500);
         }
-    }
-    prizeList.addEventListener('click', handleListClick);
-    quantityList.addEventListener('click', handleListClick);
 
-    // 【修改】玩家輸入姓名事件：不再鎖定輸入框，而是發送姓名給大腦
-    participantNameInput.addEventListener('change', () => {
-        if (amIDealer) return;
-        const name = participantNameInput.value.trim();
-        if (!name) return;
-        currentParticipantName = name; // 存在本地端，用於當前回合
-        socket.emit('setPlayerName', { roomId, name }); // 發送給大腦，用於更新排隊列表
-        drawStatus.textContent = `你好, ${name}！請拉動拉桿！`;
+        // 【畫面渲染相關函式】(來自您的原始碼)
+        const getPrizeIcon = (name) => { /* ... 您的 icon 邏輯 ... */ return `<svg ... </svg>`; };
+        function renderAll() { renderPrizes(); renderQuantities(); renderPrizeReel(); renderQuantityReel(); renderWinners(); }
+        function renderList(list, listEl, type) {
+            listEl.innerHTML = list.length ? '' : `<p class="text-gray-500 text-sm">尚未設定任何${type === 'prize' ? '獎項' : '數量'}。</p>`;
+            list.forEach((item, index) => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'flex justify-between items-center';
+                itemEl.innerHTML = `<span class="font-semibold text-lg">${item.name}</span><div class="flex gap-2"><button class="btn btn-secondary btn-sm edit-btn" data-type="${type}" data-index="${index}">編輯</button><button class="btn btn-danger btn-sm delete-btn" data-type="${type}" data-index="${index}">刪除</button></div>`;
+                listEl.appendChild(itemEl);
+            });
+        }
+        const renderPrizes = () => renderList(prizes, prizeList, 'prize');
+        const renderQuantities = () => renderList(quantities, quantityList, 'quantity');
+        function renderPrizeReel() {
+            if (prizes.length === 0) { prizeReel.innerHTML = `<div class="reel-item" style="height: 100%; color: red; justify-content: center;">請先設定獎項</div>`; return; }
+            const shuffledPrizes = [...prizes].sort(() => Math.random() - 0.5);
+            const repeatCount = Math.max(10, Math.ceil(60 / prizes.length));
+            const displayItems = Array(repeatCount).fill(shuffledPrizes).flat();
+            prizeReel.innerHTML = displayItems.map(prize => `<div class="reel-item" data-name="${prize.name}">${getPrizeIcon(prize.name)}<span>${prize.name}</span></div>`).join('');
+        }
+        function renderQuantityReel() {
+            const shuffledQuantities = [...quantities].sort(() => Math.random() - 0.5);
+            const repeatCount = Math.max(10, Math.ceil(60 / quantities.length));
+            const displayItems = Array(repeatCount).fill(shuffledQuantities).flat();
+            quantityReel.innerHTML = displayItems.map(q => `<div class="reel-item quantity-item" data-name="${q.name}">${q.name}</div>`).join('');
+        }
+        function renderWinners() {
+            winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
+            winners.forEach(winner => {
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-3';
+                row.innerHTML = `<div>${winner.name}</div><div>${winner.prize}</div><div class="text-center">${winner.quantity}</div>`;
+                winnersTable.appendChild(row);
+            });
+        }
+
+        // 【Modal 彈出視窗相關函式】(來自您的原始碼)
+        function openItemModal(type, index = null) {
+            itemForm.reset();
+            const list = type === 'prize' ? prizes : quantities;
+            modalTitle.textContent = `${index !== null ? '編輯' : '新增'}${type === 'prize' ? '獎項' : '數量'}`;
+            modalItemType.value = type;
+            if (index !== null) {
+                modalItemIndex.value = index;
+                modalItemName.value = list[index].name;
+            } else {
+                modalItemIndex.value = '';
+            }
+            modalItemName.type = type === 'quantity' ? 'number' : 'text';
+            itemModal.classList.remove('hidden');
+        }
+
+        // 【主題和音樂相關函式】(來自您的原始碼)
+        let player;
+        window.onYouTubeIframeAPIReady = function() { player = new YT.Player('youtube-player', { height: '0', width: '0', playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', index: 4, loop: 1 }, events: { 'onReady': (event) => { event.target.setVolume(50); } } }); };
+        function applyTheme(theme) { document.body.classList.toggle('theme-rog', theme === 'rog'); themeButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.theme === theme); }); localStorage.setItem('lotteryTheme', theme); }
+        function loadTheme() { const savedTheme = localStorage.getItem('lotteryTheme') || 'default'; applyTheme(savedTheme); }
+
+        // --- 4. 事件綁定區 ---
+        // (所有 addEventListener 都集中在此)
+        
+        // Modal 相關事件
+        addPrizeBtn.addEventListener('click', () => openItemModal('prize'));
+        addQuantityBtn.addEventListener('click', () => openItemModal('quantity'));
+        cancelModalBtn.addEventListener('click', () => itemModal.classList.add('hidden'));
+        itemForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = modalItemName.value.trim();
+            if (!name) return;
+            const type = modalItemType.value;
+            const index = modalItemIndex.value;
+            const list = type === 'prize' ? prizes : quantities;
+            if (index) { list[index] = { name }; } else { list.push({ name }); }
+            itemModal.classList.add('hidden');
+            renderAll();
+        });
+
+        // 獎項/數量列表編輯事件
+        function handleListClick(e) {
+            if (e.target.classList.contains('edit-btn')) { openItemModal(e.target.dataset.type, e.target.dataset.index); }
+            if (e.target.classList.contains('delete-btn')) {
+                const { type, index } = e.target.dataset;
+                const list = type === 'prize' ? prizes : quantities;
+                if (confirm(`確定要刪除 "${list[index].name}" 嗎？`)) { list.splice(index, 1); renderAll(); }
+            }
+        }
+        prizeList.addEventListener('click', handleListClick);
+        quantityList.addEventListener('click', handleListClick);
+
+        // 玩家輸入姓名事件
+        participantNameInput.addEventListener('change', () => {
+            const name = participantNameInput.value.trim();
+            if (!name) return;
+            currentParticipantName = name;
+            drawStatus.textContent = `你好, ${name}！請拉動拉桿！`;
+            participantNameInput.disabled = true;
+        });
+
+        // 拉桿點擊事件
+        leverLeft.addEventListener('click', () => handleSpin('prize'));
+        leverRight.addEventListener('click', () => handleSpin('quantity'));
+
+        // 其他按鈕事件
+        exportCsvBtn.addEventListener('click', () => {
+            if (winners.length === 0) return;
+            let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
+            csvContent += '得獎人,獎項,數量\n';
+            winners.forEach(row => { csvContent += `${row.name},${row.prize},${row.quantity}\n`; });
+            const link = document.createElement('a');
+            link.setAttribute('href', encodeURI(csvContent));
+            link.setAttribute('download', '雙渦輪得獎名單.csv');
+            link.click();
+        });
+        themeSwitcher.addEventListener('click', (e) => {
+            if (e.target.classList.contains('theme-btn')) { applyTheme(e.target.dataset.theme); }
+        });
+        document.getElementById('toggle-music-btn').addEventListener('click', () => {
+            if (!player || !player.getPlayerState) return;
+            const btn = document.getElementById('toggle-music-btn');
+            if (player.getPlayerState() === 1) { player.pauseVideo(); btn.textContent = '🔇 開啟背景音樂'; } 
+            else { player.playVideo(); btn.textContent = '🔊 關閉背景音樂'; }
+        });
+
+        // --- 5. 程式啟動區 ---
+        loadTheme();
+        renderAll();
+        initializeMultiplayer();
+
     });
-
-    // --- 5. 程式啟動區 ---
-    loadTheme();
-    renderAll();
-    initializeMultiplayer();
-});
-</script>
+    </script>
     <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
