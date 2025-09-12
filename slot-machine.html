@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雙滾輪互動抽獎活動</title>
-  
-/* 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」 */
+
+ // 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  /* 「無線電通訊 (Socket.IO)」和「畫 QR Code (qrcode.js)」 */
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -431,7 +430,6 @@
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
 
-  /* 加入「計分板」 */
 <div id="room-info" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
     <h3 id="room-id-display" class="font-bold text-lg mb-2"></h3>
     <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
@@ -440,7 +438,6 @@
     <h4 class="font-bold mt-2">排隊列表</h4>
     <ol id="queue-list" class="list-decimal list-inside"></ol>
 </div>
-  /* 加入「計分板」 */
 
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
@@ -503,6 +500,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+       document.getElementById('item-modal').classList.add('hidden');
             let prizes = [
                 { name: '大杯美式咖啡' },
                 { name: '特大美式咖啡' },
@@ -527,6 +525,34 @@
                 quantity: { isSpinning: false, isStopping: false, spinEndListener: null, finalResult: null, hasBeenSpun: false }
             };
 
+
+            // --- DOM 元素 ---
+            const prizeList = document.getElementById('prize-list');
+            const quantityList = document.getElementById('quantity-list');
+            const addPrizeBtn = document.getElementById('add-prize-btn');
+            const addQuantityBtn = document.getElementById('add-quantity-btn');
+            const itemModal = document.getElementById('item-modal');
+            const cancelModalBtn = document.getElementById('cancel-modal-btn');
+            const itemForm = document.getElementById('item-form');
+            const modalTitle = document.getElementById('modal-title');
+            const modalItemType = document.getElementById('modal-item-type');
+            const modalItemIndex = document.getElementById('modal-item-index');
+            const modalItemName = document.getElementById('item-name');
+            
+            const participantNameInput = document.getElementById('participant-name');
+            const drawStatus = document.getElementById('draw-status');
+            
+            const leverLeft = document.getElementById('lever-left');
+            const leverRight = document.getElementById('lever-right');
+            const prizeReel = document.getElementById('prize-reel');
+            const quantityReel = document.getElementById('quantity-reel');
+            const slotWindow = document.getElementById('slot-window');
+
+            const winnersTable = document.getElementById('winners-table');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+            const themeSwitcher = document.getElementById('theme-switcher');
+            const themeButtons = document.querySelectorAll('.theme-btn');
+            
 // ↓↓↓ 把這些「連線版新變數」貼在這裡 ↓↓↓
 let myPlayerId = null;          // 用來儲存我們自己的連線ID
 let currentTurnPlayerId = null; // 記錄現在輪到誰
@@ -606,33 +632,7 @@ socket.on('newWinner', (newWinner) => {
 
 socket.on('error', (msg) => alert('錯誤：' + msg));
 
-            // --- DOM 元素 ---
-            const prizeList = document.getElementById('prize-list');
-            const quantityList = document.getElementById('quantity-list');
-            const addPrizeBtn = document.getElementById('add-prize-btn');
-            const addQuantityBtn = document.getElementById('add-quantity-btn');
-            const itemModal = document.getElementById('item-modal');
-            const cancelModalBtn = document.getElementById('cancel-modal-btn');
-            const itemForm = document.getElementById('item-form');
-            const modalTitle = document.getElementById('modal-title');
-            const modalItemType = document.getElementById('modal-item-type');
-            const modalItemIndex = document.getElementById('modal-item-index');
-            const modalItemName = document.getElementById('item-name');
-            
-            const participantNameInput = document.getElementById('participant-name');
-            const drawStatus = document.getElementById('draw-status');
-            
-            const leverLeft = document.getElementById('lever-left');
-            const leverRight = document.getElementById('lever-right');
-            const prizeReel = document.getElementById('prize-reel');
-            const quantityReel = document.getElementById('quantity-reel');
-            const slotWindow = document.getElementById('slot-window');
 
-            const winnersTable = document.getElementById('winners-table');
-            const exportCsvBtn = document.getElementById('export-csv-btn');
-            const themeSwitcher = document.getElementById('theme-switcher');
-            const themeButtons = document.querySelectorAll('.theme-btn');
-            
             let player;
             window.onYouTubeIframeAPIReady = function() {
                 player = new YT.Player('youtube-player', { height: '0', width: '0', playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', index: 4, loop: 1 }, events: { 'onReady': (event) => { event.target.setVolume(50); } } });
