@@ -1,4 +1,4 @@
-// index.js (最終權威紀錄 v4 版)
+// index.js (最終權威修正版 v5)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -97,7 +97,6 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // ★★★ 關鍵修正：不論轉哪邊，都先記下玩家名字 ★★★
             if (!room.currentTurnData.playerName) {
                 room.currentTurnData.playerName = playerName;
             }
@@ -106,14 +105,17 @@ io.on('connection', (socket) => {
             let sourceList = [];
             if (type === 'prize' && room.prizes.length > 0) {
                 sourceList = room.prizes.map(p => p.name);
-                result = sourceList[Math.floor(Math.random() * sourceList.length)];
-                room.currentTurnData.prize = result; // 只記錄獎項
             } else if (type === 'quantity' && room.quantities.length > 0) {
                 sourceList = room.quantities.map(q => q.name);
+            }
+            if (sourceList.length > 0) {
                 result = sourceList[Math.floor(Math.random() * sourceList.length)];
-                room.currentTurnData.quantity = result; // 只記錄數量
-            } else {
-                return;
+            }
+            
+            if (type === 'prize') {
+                room.currentTurnData.prize = result;
+            } else if (type === 'quantity') {
+                room.currentTurnData.quantity = result;
             }
             socket.emit('spinResult', { type, result });
         }
@@ -122,6 +124,7 @@ io.on('connection', (socket) => {
     socket.on('turnComplete', ({ roomId }) => {
         const room = gameRooms[roomId];
         if (room && room.queue[0] === socket.id) {
+            
             if (room.currentTurnData.playerName && room.currentTurnData.prize && room.currentTurnData.quantity) {
                 const winnerData = {
                     name: room.currentTurnData.playerName,
@@ -129,8 +132,11 @@ io.on('connection', (socket) => {
                     quantity: room.currentTurnData.quantity
                 };
                 room.winners.push(winnerData);
+                
                 room.queue.shift(); 
+                
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
+                
                 console.log(`玩家 ${socket.id} 完成抽獎，下一位...`);
                 broadcastRoomState(roomId);
             }
@@ -154,4 +160,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v4) 正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v5) 正在監聽 port ${PORT}`));
