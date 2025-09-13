@@ -56,7 +56,7 @@
         .theme-rog body { font-family: 'Orbitron', 'Noto Sans JP', sans-serif; background-color: #121212; color: #E0E0E0; }
         .theme-rog .section-container { background-color: rgba(26, 26, 30, 0.85); border: 1px solid #ff003c; box-shadow: 0 0 15px rgba(255, 0, 60, 0.3), inset 0 0 10px rgba(255, 0, 60, 0.2); }
         .theme-rog header h1, .theme-rog .modal-content h3 { color: #FFF; text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 15px #ff003c; }
-        .theme-rog h2, .theme-rog h3 { color: #ff003c; border-bottom-color: #ff003c; }
+        .theme-rog h2, .theme-rog h3, .theme-rog #room-info h4 {color: #ff003c;border-bottom-color: #ff003c;}
         .theme-rog #prize-management h3 { font-family: 'Noto Sans JP', sans-serif; text-transform: none; letter-spacing: normal; }
         .theme-rog .btn-primary { background: linear-gradient(45deg, #e60032, #ff4c6b); }
         .theme-rog .btn-primary:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); }
@@ -76,6 +76,25 @@
         .theme-rog .theme-btn.active { background: linear-gradient(45deg, #e60032, #ff4c6b); border: 1px solid #ff4c6b; color: white; }
         .theme-rog .btn-danger { background: linear-gradient(45deg, #e60032, #ff4c6b); color: white; border: 1px solid #ff4c6b; }
         .theme-rog .btn-danger:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); box-shadow: 0 4px 8px rgba(0,0,0,0.6), 0 0 10px #ff4c6b; }
+          /* --- ROG 風格下，房間資訊區塊的標題顏色 --- */
+        .theme-rog #room-info h4 {
+         color: #ff4c6b; /* 將標題改為亮紅色 */
+         text-shadow: none; /* 取消紅色光暈，讓文字更清晰 */
+        }
+        /* --- ROG 風格下，光榮榜標題的顏色 --- */
+        .theme-rog #winners-table-container > div:first-child > div {
+         color: #B0B0B0; /* 將標題改為淺灰色 */
+         text-shadow: none; /* 同樣取消光暈讓文字更清晰 */
+        }
+        /* --- ROG 風格下，排隊列表一般玩家的顏色 --- */
+        .theme-rog #queue-list li {
+         color: #f5f5f5; /* 例如改成純白色 */
+        }
+        /* --- 縮小光榮榜的行距 --- */
+        #winners-table > div {
+         padding-top: 0.3rem;
+         padding-bottom: 0.3rem;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8">
@@ -116,20 +135,39 @@
                 <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
-            <div id="room-info" class="mb-4 p-4 bg-white rounded-lg flex flex-col md:flex-row gap-8 items-start theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
-                <div id="dealer-share-info" class="w-full md:w-1/2 text-center">
-                    <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
-                    <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
-                    <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
-                    <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
-                        <span class="text-xs">QR Code 生成中</span>
-                    </div>
-                </div>
-                <div class="w-full md:w-1/2">
-                    <h4 class="font-bold text-center md:text-left text-lg mb-2">排隊列表</h4>
-                    <ol id="queue-list" class="list-decimal list-inside"></ol>
-                </div>
+            
+           <div id="room-info" class="section-container flex flex-col md:flex-row gap-8 items-start">
+
+            <div id="dealer-share-info" class="w-full md:w-1/4 text-center border-r border-gray-200 theme-rog:border-gray-600 pr-4">
+               <h4 class="font-bold text-center text-lg mb-2">房間資訊</h4>
+               <p id="room-id-display" class="font-bold text-lg mb-2 text-blue-600 theme-rog:text-blue-400">載入中...</p>
+               <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
+               <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
+               <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
+                 <span class="text-xs">QR Code 生成中</span>
+               </div>
+             </div>
+
+            <div class="w-full md:w-1/4 border-r border-gray-200 theme-rog:border-gray-600 pr-4">
+               <h4 class="font-bold text-center text-lg mb-2">排隊列表</h4>
+               <ol id="queue-list" class="list-decimal list-inside text-center"></ol>
+          </div>
+    
+    <div id="winners-section" class="w-full md:w-2/4">
+        <h4 class="font-bold text-center text-lg mb-2">光榮榜</h4>
+        <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-4 theme-rog:bg-transparent">
+            <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 theme-rog:bg-black/25 text-sm">
+              <div class="col-span-2 whitespace-nowrap">得獎人</div>
+              <div class="col-span-5 whitespace-nowrap">抽中獎項</div>
+              <div class="text-center col-span-1 whitespace-nowrap">数量</div>
             </div>
+            <div id="winners-table" class="max-h-48 overflow-y-auto"></div>
+        </div>
+        <button id="export-csv-btn" class="btn btn-secondary w-full">匯出得獎名單 (CSV)</button>
+    </div>
+
+</div>
+            
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
                     <div class="slot-window-wrapper">
@@ -146,16 +184,6 @@
                     <div id="lever-right" class="lever"><div class="lever-arm"><div class="lever-ball"></div></div></div>
                 </div>
             </div>
-        </div>
-        <div id="winners-section" class="section-container">
-            <h2>光榮榜</h2>
-            <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-6">
-                <div class="grid grid-cols-3 font-bold p-4 bg-gray-100">
-                    <div>得獎人</div><div>抽中獎項</div><div>数量</div>
-                </div>
-                <div id="winners-table" class="max-h-96 overflow-y-auto"></div>
-            </div>
-            <button id="export-csv-btn" class="btn btn-secondary">匯出得獎名單 (CSV)</button>
         </div>
     </div>
     <div id="item-modal" class="modal-backdrop hidden">
@@ -481,8 +509,8 @@ document.addEventListener('DOMContentLoaded', () => {
         winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
         winners.forEach(winner => {
             const row = document.createElement('div');
-            row.className = 'grid grid-cols-3';
-            row.innerHTML = `<div>${winner.name}</div><div>${winner.prize}</div><div class="text-center">${winner.quantity}</div>`;
+            row.className = 'grid grid-cols-8 items-center'; // 改成 8 欄，並讓內容垂直置中
+            row.innerHTML = `<div class="col-span-2">${winner.name}</div><div class="col-span-5">${winner.prize}</div><div class="text-center col-span-1">${winner.quantity}</div>`;
             winnersTable.appendChild(row);
         });
     }
