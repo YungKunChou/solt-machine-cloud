@@ -120,14 +120,23 @@
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
             
-            <div id="room-info" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
-                <h3 id="room-id-display" class="font-bold text-lg mb-2"></h3>
-                <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
-                <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
-                <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded"></div>
-                <h4 class="font-bold mt-2">排隊列表</h4>
-                <ol id="queue-list" class="list-decimal list-inside"></ol>
-            </div>
+            <div id="room-info" class="mb-4 p-4 bg-white rounded-lg flex flex-col md:flex-row gap-8 items-start theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
+    
+    <div class="w-full md:w-1/2 text-center">
+        <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
+        <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
+        <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
+        <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
+            <span class="text-xs">QR Code 生成中</span>
+        </div>
+    </div>
+
+    <div class="w-full md:w-1/2">
+        <h4 class="font-bold text-center md:text-left text-lg mb-2">排隊列表</h4>
+        <ol id="queue-list" class="list-decimal list-inside"></ol>
+    </div>
+
+</div>
 
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
