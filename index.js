@@ -57,14 +57,25 @@ io.on('connection', (socket) => {
         }
     });
     
-    socket.on('setPlayerName', ({ roomId, name }) => {
-        const room = gameRooms[roomId];
-        if (room && room.players[socket.id]) {
-            room.players[socket.id].name = name;
-            console.log(`玩家 ${socket.id} 設定名稱為: ${name}`);
-            broadcastRoomState(roomId);
+    // ↓↓↓ 在 index.js 中，替換掉舊的 setPlayerName 區塊 ↓↓↓
+socket.on('setPlayerName', ({ roomId, name }) => {
+    const room = gameRooms[roomId];
+    if (room && room.players[socket.id]) {
+        // 檢查姓名是否重複
+        const isNameTaken = Object.values(room.players).some(player => player.name === name);
+
+        if (isNameTaken) {
+            // 如果重複，只告訴這位玩家錯誤訊息
+            socket.emit('nameError', '這個名字已經被使用了，請換一個！');
+            return;
         }
-    });
+
+        // 如果沒重複，才更新並廣播
+        room.players[socket.id].name = name;
+        console.log(`玩家 ${socket.id} 設定名稱為: ${name}`);
+        broadcastRoomState(roomId);
+    }
+});
 
     socket.on('updatePrizes', ({ roomId, prizes }) => {
         const room = gameRooms[roomId];
