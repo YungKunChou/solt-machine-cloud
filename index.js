@@ -157,6 +157,14 @@ io.on('connection', (socket) => {
             }
         }
     });
+    // ↓↓↓ 在 index.js 的 io.on('connection',...) 內部，新增這個區塊 ↓↓↓
+    socket.on('startSpinAnimation', ({ roomId, type }) => {
+    const room = gameRooms[roomId];
+    if (room) {
+        // 向房間內除了自己以外的所有人廣播
+        socket.to(roomId).broadcast.emit('playerIsSpinning', { type, spinnerId: socket.id });
+    }
+    });
 });
 
 const PORT = process.env.PORT || 3001;
