@@ -21,7 +21,7 @@ app.post('/create-room', (req, res) => {
         winners: [], // 得獎名單也由伺服器管理
         currentTurnData: { prize: null, quantity: null, playerName: null },
         prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
-        quantities: [ { name: '1' }, { name: '2' }, { name: '3' } ]
+        quantities: [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' }, { name: '1' } ]
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
