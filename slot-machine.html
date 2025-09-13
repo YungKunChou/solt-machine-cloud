@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雙滾輪互動抽獎活動 (最終版)</title>
+    <title>雙渦輪互動抽獎活動 (最終版)</title>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -95,7 +95,6 @@
                 <div id="youtube-player" class="w-0 h-0 overflow-hidden"></div>
             </div>
         </div>
-
         <div id="prize-management" class="section-container">
             <h2>獎項與數量設定</h2>
             <div class="grid md:grid-cols-2 gap-8">
@@ -111,14 +110,12 @@
                 </div>
             </div>
         </div>
-
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
                 <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
-            
             <div id="room-info" class="mb-4 p-4 bg-white rounded-lg flex flex-col md:flex-row gap-8 items-start theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
                 <div id="dealer-share-info" class="w-full md:w-1/2 text-center">
                     <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
@@ -133,7 +130,6 @@
                     <ol id="queue-list" class="list-decimal list-inside"></ol>
                 </div>
             </div>
-
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
                     <div class="slot-window-wrapper">
@@ -151,7 +147,6 @@
                 </div>
             </div>
         </div>
-
         <div id="winners-section" class="section-container">
             <h2>光榮榜</h2>
             <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-6">
@@ -163,7 +158,6 @@
             <button id="export-csv-btn" class="btn btn-secondary">匯出得獎名單 (CSV)</button>
         </div>
     </div>
-    
     <div id="item-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title" class="text-2xl font-bold mb-6">新增</h3>
@@ -187,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let prizes = [];
     let quantities = [];
     let winners = [];
-    
     let socket = null;
     let roomId = null;
     let myPlayerId = null;
@@ -231,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 函式定義區 ---
 
-    // 【連線功能工具包】
     function initializeMultiplayer() {
         const backendUrl = 'https://solt-machine.onrender.com'; // ★★★ 請再次確認這是您正確的後端網址 ★★★
         socket = io(backendUrl);
@@ -247,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             myPlayerId = socket.id;
             console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
             socket.emit('joinRoom', roomId);
-            document.getElementById('qrcode').innerHTML = ''; // 清空 'QR Code 生成中' 文字
+            document.getElementById('qrcode').innerHTML = '';
             roomUrlInput.value = window.location.href;
             new QRCode(document.getElementById('qrcode'), window.location.href);
             document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
@@ -268,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const queueList = document.getElementById('queue-list');
             queueList.innerHTML = '';
-            roomState.queue.forEach((playerId, index) => {
+            (roomState.queue || []).forEach((playerId, index) => {
                 const player = roomState.players[playerId];
                 const playerName = player && player.name ? player.name : `玩家 #${index + 1}`;
                 const li = document.createElement('li');
@@ -314,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('error', (msg) => alert('錯誤：' + msg));
     }
 
-    // 【修改】檢查並記錄獲獎，現在會回報給伺服器
     function checkAndRecordWin() {
         if (reelStates.prize.finalResult !== null && reelStates.quantity.finalResult !== null) {
             socket.emit('turnComplete', { roomId });
@@ -324,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 【移植】轉動結束後的處理函式
     function finalizeSpin(type) {
         const state = reelStates[type];
         state.isSpinning = false;
@@ -338,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAndRecordWin();
     }
             
-    // 【移植】開始減速函式
     function startSlowingDown(type) {
         const state = reelStates[type];
         if (state.isStopping || !state.finalResult) {
@@ -386,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reelEl.addEventListener('transitionend', onTransitionEnd);
     }
             
-    // 【修改】拉霸核心邏輯，修正手動煞停功能
     function handleSpin(type) {
         if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
         const state = reelStates[type];
@@ -406,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.isSpinning = true;
         state.isStopping = false;
         state.finalResult = null;
-        socket.emit('spin', { roomId, type });
+        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
         
         (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
         drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
@@ -429,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, spinDuration - 1000);
     }
 
-    // 【修改】畫面渲染總管函式
     function renderAll(options = {}) {
         const { reRenderReels = true } = options;
         renderPrizes();
@@ -441,7 +428,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWinners();
     }
 
-    // 【畫面渲染相關函式】(來自您的原始碼，完整保留)
     const getPrizeIcon = (name) => {
         if (name.includes('美式')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5V15a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8H16V5h2ZM4,5H14v9a.44.44,0,0,1,0,.13V15H4Z M4,19h16v2H4Z"/></svg>`;
         if (name.includes('拿鐵') || name.includes('瑪奇朵')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5v8a4,4,0,0,0,4,4h6a4,4,0,0,0,4-4V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8h-2V5h2Zm-4,4H6a2,2,0,0,1-2-2V5H14ZM4,19h16v2H4Z M10,6a2.5,2.5,0,0,0-5,0,2.4,2.4,0,0,0,.5,1.5L9,11l3.5-3.5A2.4,2.4,0,0,0,13,6a2.5,2.5,0,0,0-3,0Z"/></svg>`;
@@ -471,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reelStates.quantity.isSpinning || reelStates.quantity.isStopping) return;
         if (quantities.length === 0) { quantityReel.innerHTML = ''; return; }
         const shuffledQuantities = [...quantities].sort(() => Math.random() - 0.5);
-        const repeatCount = Math.max(10, Math.ceil(60 / quantities.length));
+        const repeatCount = Math.max(10, Math.ceil(80 / quantities.length));
         const displayItems = Array(repeatCount).fill(shuffledQuantities).flat();
         quantityReel.innerHTML = displayItems.map(q => `<div class="reel-item quantity-item" data-name="${q.name}">${q.name}</div>`).join('');
     }
@@ -573,6 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeMultiplayer();
 });
 </script>
-    <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
+<script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
