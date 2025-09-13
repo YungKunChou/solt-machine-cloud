@@ -20,7 +20,7 @@ app.post('/create-room', (req, res) => {
         queue: [],
         winners: [],
         prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
-        quantities: [ { name: '1' }, { name: '2' }, { name: '3' } ]
+        quantities: [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' }, { name: '1' } ]
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
@@ -138,4 +138,5 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
 server.listen(PORT, () => console.log(`遊戲大腦 (雙渦輪動畫版) 正在監聽 port ${PORT}`));
