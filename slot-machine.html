@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雙渦輪互動抽獎活動 (最終版)</title>
+    <title>拉霸雙渦輪線上抽獎</title>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -328,94 +328,110 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAndRecordWin();
     }
             
-    function startSlowingDown(type) {
-        const state = reelStates[type];
-        if (state.isStopping || !state.finalResult) {
-            if (state.isSpinning) { setTimeout(() => startSlowingDown(type), 100); }
-            return;
+    // ↓↓↓ 用這個【更新版】，替換掉您舊的 startSlowingDown 函式 ↓↓↓
+    function startSlowingDown(type, isAuto = false) { // ★★★ 修改點：接收 isAuto 參數 ★★★
+    const state = reelStates[type];
+    if (state.isStopping || !state.finalResult) {
+        if (state.isSpinning) { setTimeout(() => startSlowingDown(type, isAuto), 100); }
+        return;
+    }
+    state.isStopping = true;
+    const reelEl = type === 'prize' ? prizeReel : quantityReel;
+    const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+    if(reelItems.length === 0) return;
+    const itemHeight = reelItems[0].offsetHeight;
+    const windowHeight = reelEl.parentElement.offsetHeight;
+    const style = window.getComputedStyle(reelEl);
+    const matrix = new DOMMatrixReadOnly(style.transform);
+    const currentY = matrix.m42;
+    const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
+    const wonResult = state.finalResult;
+    let finalTargetIndex = -1;
+    for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
+        if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
+            finalTargetIndex = i;
+            break;
         }
-        state.isStopping = true;
-        const reelEl = type === 'prize' ? prizeReel : quantityReel;
-        const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
-        if(reelItems.length === 0) return;
-        const itemHeight = reelItems[0].offsetHeight;
-        const windowHeight = reelEl.parentElement.offsetHeight;
-        const style = window.getComputedStyle(reelEl);
-        const matrix = new DOMMatrixReadOnly(style.transform);
-        const currentY = matrix.m42;
-        const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
-        const wonResult = state.finalResult;
-        let finalTargetIndex = -1;
-        for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
-            if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
-                finalTargetIndex = i;
+    }
+    if (finalTargetIndex === -1) {
+        const newReelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+        for(let i = 0; i < newReelItems.length; i++) {
+             if (newReelItems[i] && newReelItems[i].dataset.name === wonResult) {
+                finalTargetIndex = i + Math.floor(newReelItems.length / 2);
                 break;
             }
         }
-        if (finalTargetIndex === -1) {
-            const newReelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
-            for(let i = 0; i < newReelItems.length; i++) {
-                 if (newReelItems[i] && newReelItems[i].dataset.name === wonResult) {
-                    finalTargetIndex = i + Math.floor(newReelItems.length / 2);
-                    break;
-                }
-            }
-            if (finalTargetIndex === -1) finalTargetIndex = currentItemIndex + 10;
-        }
-        const targetPosition = finalTargetIndex * itemHeight;
-        const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
-        const stopDuration = 2500 + Math.random() * 1000;
-        reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
-        reelEl.style.transform = `translateY(-${centeredPosition}px)`;
-        setTimeout(() => (type === 'prize' ? leverLeft : leverRight).classList.remove('pulled'), stopDuration - 400);
-        const onTransitionEnd = () => {
-            finalizeSpin(type);
-            reelEl.removeEventListener('transitionend', onTransitionEnd);
-        };
-        reelEl.addEventListener('transitionend', onTransitionEnd);
+        if (finalTargetIndex === -1) finalTargetIndex = currentItemIndex + 10;
     }
+    const targetPosition = finalTargetIndex * itemHeight;
+    const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+    const stopDuration = 2500 + Math.random() * 1000;
+    reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+    reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+    
+    // ★★★ 關鍵修改：根據是否為自動，決定拉桿回位時機 ★★★
+    const leverEl = type === 'prize' ? leverLeft : leverRight;
+    if (isAuto) {
+        // 自動煞停：在動畫快結束時才回位
+        setTimeout(() => leverEl.classList.remove('pulled'), stopDuration - 400);
+    } else {
+        // 手動煞停：立刻回位
+        leverEl.classList.remove('pulled');
+    }
+
+    const onTransitionEnd = () => {
+        finalizeSpin(type);
+        reelEl.removeEventListener('transitionend', onTransitionEnd);
+    };
+    reelEl.addEventListener('transitionend', onTransitionEnd);
+}
             
+    // ↓↓↓ 用這個【更新版】，替換掉您舊的 handleSpin 函式 ↓↓↓
     function handleSpin(type) {
-        if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
-        const state = reelStates[type];
-        
-        if (state.isSpinning && !state.isStopping) {
-            clearTimeout(state.spinEndTimeout);
-            startSlowingDown(type);
-            return;
-        }
-        if (state.isSpinning) return;
-        
-        if (state.hasBeenSpun) {
-            drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
-        }
-
-        state.hasBeenSpun = true;
-        state.isSpinning = true;
-        state.isStopping = false;
-        state.finalResult = null;
-        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
-        
-        (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
-        drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
-        
-        const reelEl = type === 'prize' ? prizeReel : quantityReel;
-        const windowHeight = reelEl.parentElement.offsetHeight;
-        
-        renderPrizeReel();
-        renderQuantityReel();
-
-        reelEl.style.transition = 'none';
-        reelEl.style.transform = 'translateY(0px)';
-        void reelEl.offsetWidth;
-
-        const spinDuration = 5000;
-        reelEl.style.transition = `transform ${spinDuration}ms linear`;
-        reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
-        state.spinEndTimeout = setTimeout(() => {
-            startSlowingDown(type);
-        }, spinDuration - 1000);
+    if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
+    const state = reelStates[type];
+    
+    // 優先處理「手動煞停」
+    if (state.isSpinning && !state.isStopping) {
+        clearTimeout(state.spinEndTimeout);
+        startSlowingDown(type, false); // ★★★ 修改點：告訴函式這不是自動的 (false) ★★★
+        return;
     }
+
+    if (state.isSpinning) return;
+    
+    if (state.hasBeenSpun) {
+        drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
+    }
+
+    state.hasBeenSpun = true;
+    state.isSpinning = true;
+    state.isStopping = false;
+    state.finalResult = null;
+    socket.emit('spin', { roomId, type, playerName: currentParticipantName });
+    
+    (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
+    drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
+    
+    const reelEl = type === 'prize' ? prizeReel : quantityReel;
+    const windowHeight = reelEl.parentElement.offsetHeight;
+    
+    renderPrizeReel();
+    renderQuantityReel();
+
+    reelEl.style.transition = 'none';
+    reelEl.style.transform = 'translateY(0px)';
+    void reelEl.offsetWidth;
+
+    const spinDuration = 5000;
+    reelEl.style.transition = `transform ${spinDuration}ms linear`;
+    reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
+
+    // 設定「自動煞停」計時器
+    state.spinEndTimeout = setTimeout(() => {
+        startSlowingDown(type, true); // ★★★ 修改點：告訴函式這是自動的 (true) ★★★
+    }, spinDuration - 1000);
+}
 
     function renderAll(options = {}) {
         const { reRenderReels = true } = options;
