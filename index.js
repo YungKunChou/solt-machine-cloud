@@ -1,4 +1,4 @@
-// index.js (最終版 v6)
+// index.js (最終權威修正版 v5)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -90,14 +90,17 @@ io.on('connection', (socket) => {
     socket.on('spin', ({ roomId, type, playerName }) => {
         const room = gameRooms[roomId];
         if (room && room.queue[0] === socket.id && room.dealerId !== socket.id) {
+            
             const isAlreadyWinner = room.winners.some(winner => winner.name === playerName);
             if (isAlreadyWinner) {
                 socket.emit('error', `"${playerName}" 已經抽過獎了，不能重複抽獎！`);
                 return;
             }
+
             if (!room.currentTurnData.playerName) {
                 room.currentTurnData.playerName = playerName;
             }
+
             let result = '';
             let sourceList = [];
             if (type === 'prize' && room.prizes.length > 0) {
@@ -108,6 +111,7 @@ io.on('connection', (socket) => {
             if (sourceList.length > 0) {
                 result = sourceList[Math.floor(Math.random() * sourceList.length)];
             }
+            
             if (type === 'prize') {
                 room.currentTurnData.prize = result;
             } else if (type === 'quantity') {
@@ -120,6 +124,7 @@ io.on('connection', (socket) => {
     socket.on('turnComplete', ({ roomId }) => {
         const room = gameRooms[roomId];
         if (room && room.queue[0] === socket.id) {
+            
             if (room.currentTurnData.playerName && room.currentTurnData.prize && room.currentTurnData.quantity) {
                 const winnerData = {
                     name: room.currentTurnData.playerName,
@@ -127,19 +132,14 @@ io.on('connection', (socket) => {
                     quantity: room.currentTurnData.quantity
                 };
                 room.winners.push(winnerData);
-                room.queue.shift();
+                
+                room.queue.shift(); 
+                
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
+                
                 console.log(`玩家 ${socket.id} 完成抽獎，下一位...`);
                 broadcastRoomState(roomId);
             }
-        }
-    });
-
-    // ★★★ 修正點：將 startSpinAnimation 移到正確的位置 ★★★
-    socket.on('startSpinAnimation', ({ roomId, type }) => {
-        const room = gameRooms[roomId];
-        if (room) {
-            socket.to(roomId).broadcast.emit('playerIsSpinning', { type, spinnerId: socket.id });
         }
     });
 
@@ -160,4 +160,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`遊戲大腦 (最終版 v6) 正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v5) 正在監聽 port ${PORT}`));
