@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雙滾輪互動抽獎活動 (連線版)</title>
+    <title>雙滾輪互動抽獎活動 (最終版)</title>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -13,7 +13,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* 您所有的原始 CSS 樣式都完整保留，此處省略以節省篇幅 */
         body { font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif; background-color: #F8F7F5; color: #4A4A4A; transition: background-color 0.5s ease, color 0.5s ease; }
         .section-container { background-color: #FFFFFF; border-radius: 12px; padding: 2.5rem; margin-bottom: 2rem; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07); border: 1px solid #EAEAEA; transition: all 0.5s ease; }
         h2 { font-family: 'Noto Sans JP', sans-serif; font-weight: 500; font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #EAEAEA; color: #333; transition: color 0.5s ease, border-color 0.5s ease; }
@@ -116,27 +115,24 @@
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
-                <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2-3">
+                <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
             
             <div id="room-info" class="mb-4 p-4 bg-white rounded-lg flex flex-col md:flex-row gap-8 items-start theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
-    
-    <div id="dealer-share-info" class="w-full md:w-1/2 text-center">
-        <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
-        <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
-        <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
-        <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
-            <span class="text-xs">QR Code 生成中</span>
-        </div>
-    </div>
-
-    <div class="w-full md:w-1/2">
-        <h4 class="font-bold text-center md:text-left text-lg mb-2">排隊列表</h4>
-        <ol id="queue-list" class="list-decimal list-inside"></ol>
-    </div>
-
-   </div>
+                <div id="dealer-share-info" class="w-full md:w-1/2 text-center">
+                    <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
+                    <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
+                    <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
+                    <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
+                        <span class="text-xs">QR Code 生成中</span>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2">
+                    <h4 class="font-bold text-center md:text-left text-lg mb-2">排隊列表</h4>
+                    <ol id="queue-list" class="list-decimal list-inside"></ol>
+                </div>
+            </div>
 
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
@@ -185,29 +181,27 @@
         </div>
     </div>
 
- <script>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 保險措施 ---
-    document.getElementById('item-modal').classList.add('hidden');
-
-    // --- 1. 公共變數布告欄 (所有函式都能看到和使用) ---
-    let prizes = []; // 由伺服器提供權威版本
-    let quantities = []; // 由伺服器提供權威版本
-    let winners = []; // 由伺服器提供權威版本
+    // --- 1. 公共變數布告欄 ---
+    let prizes = [];
+    let quantities = [];
+    let winners = [];
     
     let socket = null;
     let roomId = null;
     let myPlayerId = null;
     let currentTurnPlayerId = null;
     let currentParticipantName = null;
-    let amIDealer = false; // 判斷自己是不是莊家
+    let amIDealer = false;
 
+    // 滾輪狀態變數，與您「雙渦輪」設計完全同步
     const reelStates = {
-        prize: { hasBeenSpun: false },
-        quantity: { hasBeenSpun: false }
+        prize: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false },
+        quantity: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false }
     };
-
-    // --- 2. DOM 零件定義區 (來自您的原始碼) ---
+    
+    // --- 2. DOM 零件定義區 (來自您的原始碼，完整無缺) ---
     const prizeList = document.getElementById('prize-list');
     const quantityList = document.getElementById('quantity-list');
     const addPrizeBtn = document.getElementById('add-prize-btn');
@@ -234,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prizeManagementSection = document.getElementById('prize-management');
     const winnersSection = document.getElementById('winners-section');
     const dealerShareInfo = document.getElementById('dealer-share-info');
-    
+
     // --- 3. 函式定義區 ---
 
     // 【連線功能工具包】
@@ -242,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const backendUrl = 'https://solt-machine.onrender.com'; // ★★★ 請再次確認這是您正確的後端網址 ★★★
         socket = io(backendUrl);
         const urlParams = new URLSearchParams(window.location.search);
-        roomId = urlParams.get('room'); // 將 roomId 存到公共變數
+        roomId = urlParams.get('room');
 
         if (!roomId) {
             document.body.innerHTML = '<h1 class="text-4xl text-center p-12">錯誤：無效的房間ID！<br>請從您的入口網站 (index.html) 建立新遊戲。</h1>';
@@ -253,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             myPlayerId = socket.id;
             console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
             socket.emit('joinRoom', roomId);
+            document.getElementById('qrcode').innerHTML = ''; // 清空 'QR Code 生成中' 文字
             roomUrlInput.value = window.location.href;
             new QRCode(document.getElementById('qrcode'), window.location.href);
             document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
@@ -260,18 +255,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('updateRoomState', (roomState) => {
             console.log("收到房間狀態更新:", roomState);
-            
             prizes = roomState.prizes;
             quantities = roomState.quantities;
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
 
-            // 根據身份，顯示或隱藏對應的區塊
-           prizeManagementSection.style.display = amIDealer ? 'block' : 'none';      // 獎項設定 (僅莊家)
-           dealerShareInfo.style.display = amIDealer ? 'block' : 'none';          // 分享資訊 (僅莊家)
-           winnersSection.style.display = 'block';                                  // 光榮榜 (所有人都看得到)
-           exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';      // 匯出按鈕 (僅莊家)
+            prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
+            dealerShareInfo.style.display = amIDealer ? 'block' : 'none';
+            winnersSection.style.display = 'block';
+            exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';
             
             const queueList = document.getElementById('queue-list');
             queueList.innerHTML = '';
@@ -280,17 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const playerName = player && player.name ? player.name : `玩家 #${index + 1}`;
                 const li = document.createElement('li');
                 let text = playerName;
-                if (playerId === myPlayerId) {
-                    text += ' (你)';
-                    li.style.fontWeight = 'bold';
-                    li.classList.add('text-green-500');
-                }
+                if (playerId === myPlayerId) { text += ' (你)'; li.style.fontWeight = 'bold'; li.classList.add('text-green-500'); }
                 li.textContent = text;
                 queueList.appendChild(li);
             });
             
             participantNameInput.disabled = amIDealer;
-            
             if (amIDealer) {
                 drawStatus.textContent = "您是莊家，負責主持活動";
                 participantNameInput.placeholder = "您是莊家，無法參與抽獎";
@@ -305,60 +293,161 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawStatus.textContent = `現在輪到 ${currentPlayerName}...`;
                 participantNameInput.placeholder = "等待輪到你...";
             }
-            
-            renderAll();
+            renderAll({ reRenderReels: !reelStates.prize.isSpinning && !reelStates.quantity.isSpinning });
+        });
+        
+        socket.on('nameError', (message) => {
+            alert(message);
+            participantNameInput.value = '';
+            currentParticipantName = null;
+            if (currentTurnPlayerId === myPlayerId) {
+                drawStatus.textContent = "輪到你了！請輸入姓名！";
+            }
         });
 
         socket.on('spinResult', (data) => {
-            console.log("收到拉霸結果:", data);
-            triggerSpinAnimation(data.type, data.result);
+            console.log(`收到 ${data.type} 的秘密結果: ${data.result}`);
+            if (reelStates[data.type]) {
+                reelStates[data.type].finalResult = data.result;
+            }
         });
-
         socket.on('error', (msg) => alert('錯誤：' + msg));
     }
 
-    // 【拉霸核心邏輯函式】
-    function handleSpin(type) {
-        if (amIDealer) { drawStatus.textContent = '莊家不能玩喔！'; return; }
-        if (currentTurnPlayerId !== myPlayerId) { drawStatus.textContent = '還沒輪到你喔！'; return; }
-        if (!currentParticipantName) { drawStatus.textContent = '請先輸入並確認姓名！'; return; }
-        const state = reelStates[type];
-        if (state.hasBeenSpun) { drawStatus.textContent = '這個滾輪你已經抽過了喔！'; return; }
-        state.hasBeenSpun = true;
-        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
-        (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
-        drawStatus.textContent = '祝您好運！';
-    }
-
-    // 【拉霸動畫函式】
-    function triggerSpinAnimation(type, finalResultName) {
-        const reelEl = type === 'prize' ? prizeReel : quantityReel;
-        const leverEl = type === 'prize' ? leverLeft : leverRight;
-        const allItemsOnReel = Array.from(reelEl.querySelectorAll('.reel-item'));
-        if (allItemsOnReel.length === 0) return;
-        const itemHeight = allItemsOnReel[0].offsetHeight;
-        const windowHeight = reelEl.parentElement.offsetHeight;
-        let targetIndex = -1;
-        for (let i = 10; i < allItemsOnReel.length; i++) {
-            if (allItemsOnReel[i].dataset.name === finalResultName) { targetIndex = i; break; }
+    // 【修改】檢查並記錄獲獎，現在會回報給伺服器
+    function checkAndRecordWin() {
+        if (reelStates.prize.finalResult !== null && reelStates.quantity.finalResult !== null) {
+            socket.emit('turnComplete', { roomId });
+            reelStates.prize.finalResult = null;
+            reelStates.quantity.finalResult = null;
+            currentParticipantName = null;
         }
-        if (targetIndex === -1) { targetIndex = Math.floor(Math.random() * 20) + 10; }
-        const targetPosition = targetIndex * itemHeight;
-        const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
-        const spinDuration = 3000 + Math.random() * 1000;
-        reelEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-        reelEl.style.transform = `translateY(-${centeredPosition}px)`;
-        setTimeout(() => { leverEl.classList.remove('pulled'); }, spinDuration - 500);
     }
 
-    // 【畫面渲染相關函式】(來自您的原始碼，完全保留)
+    // 【移植】轉動結束後的處理函式
+    function finalizeSpin(type) {
+        const state = reelStates[type];
+        state.isSpinning = false;
+        state.isStopping = false;
+        if (reelStates.prize.finalResult && reelStates.quantity.finalResult) {
+            slotWindow.classList.add('winner-flash');
+            setTimeout(() => {
+                slotWindow.classList.remove('winner-flash');
+            }, 4000);
+        }
+        checkAndRecordWin();
+    }
+            
+    // 【移植】開始減速函式
+    function startSlowingDown(type) {
+        const state = reelStates[type];
+        if (state.isStopping || !state.finalResult) {
+            if (state.isSpinning) { setTimeout(() => startSlowingDown(type), 100); }
+            return;
+        }
+        state.isStopping = true;
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+        if(reelItems.length === 0) return;
+        const itemHeight = reelItems[0].offsetHeight;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        const style = window.getComputedStyle(reelEl);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const currentY = matrix.m42;
+        const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
+        const wonResult = state.finalResult;
+        let finalTargetIndex = -1;
+        for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
+            if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
+                finalTargetIndex = i;
+                break;
+            }
+        }
+        if (finalTargetIndex === -1) {
+            const newReelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+            for(let i = 0; i < newReelItems.length; i++) {
+                 if (newReelItems[i] && newReelItems[i].dataset.name === wonResult) {
+                    finalTargetIndex = i + Math.floor(newReelItems.length / 2);
+                    break;
+                }
+            }
+            if (finalTargetIndex === -1) finalTargetIndex = currentItemIndex + 10;
+        }
+        const targetPosition = finalTargetIndex * itemHeight;
+        const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+        const stopDuration = 2500 + Math.random() * 1000;
+        reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+        reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+        setTimeout(() => (type === 'prize' ? leverLeft : leverRight).classList.remove('pulled'), stopDuration - 400);
+        const onTransitionEnd = () => {
+            finalizeSpin(type);
+            reelEl.removeEventListener('transitionend', onTransitionEnd);
+        };
+        reelEl.addEventListener('transitionend', onTransitionEnd);
+    }
+            
+    // 【修改】拉霸核心邏輯，修正手動煞停功能
+    function handleSpin(type) {
+        if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
+        const state = reelStates[type];
+        
+        if (state.isSpinning && !state.isStopping) {
+            clearTimeout(state.spinEndTimeout);
+            startSlowingDown(type);
+            return;
+        }
+        if (state.isSpinning) return;
+        
+        if (state.hasBeenSpun) {
+            drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
+        }
+
+        state.hasBeenSpun = true;
+        state.isSpinning = true;
+        state.isStopping = false;
+        state.finalResult = null;
+        socket.emit('spin', { roomId, type });
+        
+        (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
+        drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
+        
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        
+        renderPrizeReel();
+        renderQuantityReel();
+
+        reelEl.style.transition = 'none';
+        reelEl.style.transform = 'translateY(0px)';
+        void reelEl.offsetWidth;
+
+        const spinDuration = 5000;
+        reelEl.style.transition = `transform ${spinDuration}ms linear`;
+        reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
+        state.spinEndTimeout = setTimeout(() => {
+            startSlowingDown(type);
+        }, spinDuration - 1000);
+    }
+
+    // 【修改】畫面渲染總管函式
+    function renderAll(options = {}) {
+        const { reRenderReels = true } = options;
+        renderPrizes();
+        renderQuantities();
+        if (reRenderReels) {
+            renderPrizeReel();
+            renderQuantityReel();
+        }
+        renderWinners();
+    }
+
+    // 【畫面渲染相關函式】(來自您的原始碼，完整保留)
     const getPrizeIcon = (name) => {
         if (name.includes('美式')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5V15a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8H16V5h2ZM4,5H14v9a.44.44,0,0,1,0,.13V15H4Z M4,19h16v2H4Z"/></svg>`;
         if (name.includes('拿鐵') || name.includes('瑪奇朵')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5v8a4,4,0,0,0,4,4h6a4,4,0,0,0,4-4V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8h-2V5h2Zm-4,4H6a2,2,0,0,1-2-2V5H14ZM4,19h16v2H4Z M10,6a2.5,2.5,0,0,0-5,0,2.4,2.4,0,0,0,.5,1.5L9,11l3.5-3.5A2.4,2.4,0,0,0,13,6a2.5,2.5,0,0,0-3,0Z"/></svg>`;
         if (name.includes('星巴克') || name.includes('點心')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16,5V4a2,2,0,0,0-2-2H4A2,2,0,0,0,2,4v8a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2v-.17a3,3,0,0,1,2,0V12a2,2,0,0,0,2,2h0a2,2,0,0,0,2-2V7a2,2,0,0,0-2-2ZM14,12H4V4h10ZM20,12h0Z M22.7,15.21a1,1,0,0,0-1.13-.23,6,6,0,0,1-7.14,0,1,1,0,0,0-1.13.23,1,1,0,0,0,.24,1.12,8,8,0,0,0,9.52,0A1,1,0,0,0,22.7,15.21Z M17,18a3,3,0,0,0,3,3,3,3,0,0,0,2.12-.88A3,3,0,0,0,17,18Z"/></svg>`;
-        return `<svg xmlns="http://www.w.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5,6h-4.34a3,3,0,0,0-5.32,0H3.5a1,1,0,0,0-1,1V20.5a1,1,0,0,0,1,1h17a1,1,0,0,0,1-1V7A1,1,0,0,0,20.5,6ZM12,4a1,1,0,0,1,1,1,1,1,0,0,1-2,0A1,1,0,0,1,12,4Zm7.5,15.5h-15V8h3.33a3,3,0,0,0,5.34,0H19.5Z M13,11H11v4h2Zm-3,0h2v2H10Zm6,0h-2v2h2Z"/></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5,6h-4.34a3,3,0,0,0-5.32,0H3.5a1,1,0,0,0-1,1V20.5a1,1,0,0,0,1,1h17a1,1,0,0,0,1-1V7A1,1,0,0,0,20.5,6ZM12,4a1,1,0,0,1,1,1,1,1,0,0,1-2,0A1,1,0,0,1,12,4Zm7.5,15.5h-15V8h3.33a3,3,0,0,0,5.34,0H19.5Z M13,11H11v4h2Zm-3,0h2v2H10Zm6,0h-2v2h2Z"/></svg>`;
     };
-    function renderAll() { renderPrizes(); renderQuantities(); renderPrizeReel(); renderQuantityReel(); renderWinners(); }
     function renderList(list, listEl, type) {
         listEl.innerHTML = list.length ? '' : `<p class="text-gray-500 text-sm">尚未設定任何${type === 'prize' ? '獎項' : '數量'}。</p>`;
         list.forEach((item, index) => {
@@ -371,13 +460,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderPrizes = () => renderList(prizes, prizeList, 'prize');
     const renderQuantities = () => renderList(quantities, quantityList, 'quantity');
     function renderPrizeReel() {
+        if (reelStates.prize.isSpinning || reelStates.prize.isStopping) return;
         if (prizes.length === 0) { prizeReel.innerHTML = `<div class="reel-item" style="height: 100%; color: red; justify-content: center;">請先設定獎項</div>`; return; }
         const shuffledPrizes = [...prizes].sort(() => Math.random() - 0.5);
-        const repeatCount = Math.max(10, Math.ceil(60 / prizes.length));
+        const repeatCount = Math.max(10, Math.ceil(80 / prizes.length));
         const displayItems = Array(repeatCount).fill(shuffledPrizes).flat();
         prizeReel.innerHTML = displayItems.map(prize => `<div class="reel-item" data-name="${prize.name}">${getPrizeIcon(prize.name)}<span>${prize.name}</span></div>`).join('');
     }
     function renderQuantityReel() {
+        if (reelStates.quantity.isSpinning || reelStates.quantity.isStopping) return;
         if (quantities.length === 0) { quantityReel.innerHTML = ''; return; }
         const shuffledQuantities = [...quantities].sort(() => Math.random() - 0.5);
         const repeatCount = Math.max(10, Math.ceil(60 / quantities.length));
@@ -407,16 +498,12 @@ document.addEventListener('DOMContentLoaded', () => {
         modalItemName.type = type === 'quantity' ? 'number' : 'text';
         itemModal.classList.remove('hidden');
     }
-
-    // 【主題和音樂相關函式】(來自您的原始碼，完全保留)
     let player;
     window.onYouTubeIframeAPIReady = function() { player = new YT.Player('youtube-player', { height: '0', width: '0', playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', index: 4, loop: 1 }, events: { 'onReady': (event) => { event.target.setVolume(50); } } }); };
     function applyTheme(theme) { document.body.classList.toggle('theme-rog', theme === 'rog'); themeButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.theme === theme); }); localStorage.setItem('lotteryTheme', theme); }
     function loadTheme() { const savedTheme = localStorage.getItem('lotteryTheme') || 'default'; applyTheme(savedTheme); }
 
     // --- 4. 事件綁定區 ---
-    
-    // 【修改】莊家專用的事件
     itemForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!amIDealer) return;
@@ -430,7 +517,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else { socket.emit('updateQuantities', { roomId, quantities: list }); }
         itemModal.classList.add('hidden');
     });
-
     function handleListClick(e) {
         if (!amIDealer) return;
         if (e.target.classList.contains('edit-btn')) { openItemModal(e.target.dataset.type, e.target.dataset.index); }
@@ -446,8 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     prizeList.addEventListener('click', handleListClick);
     quantityList.addEventListener('click', handleListClick);
-
-    // 【修改】玩家專用的事件
     participantNameInput.addEventListener('change', () => {
         if (amIDealer) return;
         const name = participantNameInput.value.trim();
@@ -459,8 +543,6 @@ document.addEventListener('DOMContentLoaded', () => {
              drawStatus.textContent += `請拉動拉桿！`;
         }
     });
-
-    // 其他事件綁定 (來自您的原始碼，完全保留)
     addPrizeBtn.addEventListener('click', () => openItemModal('prize'));
     addQuantityBtn.addEventListener('click', () => openItemModal('quantity'));
     cancelModalBtn.addEventListener('click', () => itemModal.classList.add('hidden'));
@@ -489,7 +571,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. 程式啟動區 ---
     loadTheme();
     initializeMultiplayer();
-
 });
 </script>
     <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
