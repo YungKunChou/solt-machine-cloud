@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             participantNameInput.disabled = amIDealer;
             if (amIDealer) {
                 drawStatus.textContent = "您是莊家，負責主持活動";
-                participantNameInput.placeholder = "您是莊家，無法參與抽獎";
+                participantNameInput.placeholder = "您是莊家，不參加抽獎";
             } else if (currentTurnPlayerId === myPlayerId) {
                 drawStatus.textContent = currentParticipantName ? `你好, ${currentParticipantName}！請拉動拉桿！` : "輪到你了！請先輸入姓名！";
                 participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
