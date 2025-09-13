@@ -132,12 +132,6 @@ console.log("--- 收到 turnComplete 指令 ---");
     }
     // ★★★ 除錯碼 END ★★★
 
-    if (room && room.queue[0] === socket.id) {
-        // ... 後面的程式碼保持不變 ...
-    }
-});
-
-
         if (room && room.queue[0] === socket.id) {
             
             if (room.currentTurnData.playerName && room.currentTurnData.prize && room.currentTurnData.quantity) {
