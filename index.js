@@ -1,4 +1,4 @@
-// index.js (最終權威修正版 v5)
+// index.js (最終功能整合版)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -26,7 +26,7 @@ app.post('/create-room', (req, res) => {
         winners: [],
         currentTurnData: { prize: null, quantity: null, playerName: null },
         prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
-        quantities: [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' } , { name: '1' }]
+        quantities: [ { name: '1' }, { name: '2' }, { name: '3' } ]
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
@@ -90,17 +90,14 @@ io.on('connection', (socket) => {
     socket.on('spin', ({ roomId, type, playerName }) => {
         const room = gameRooms[roomId];
         if (room && room.queue[0] === socket.id && room.dealerId !== socket.id) {
-            
             const isAlreadyWinner = room.winners.some(winner => winner.name === playerName);
             if (isAlreadyWinner) {
                 socket.emit('error', `"${playerName}" 已經抽過獎了，不能重複抽獎！`);
                 return;
             }
-
             if (!room.currentTurnData.playerName) {
                 room.currentTurnData.playerName = playerName;
             }
-
             let result = '';
             let sourceList = [];
             if (type === 'prize' && room.prizes.length > 0) {
@@ -111,7 +108,6 @@ io.on('connection', (socket) => {
             if (sourceList.length > 0) {
                 result = sourceList[Math.floor(Math.random() * sourceList.length)];
             }
-            
             if (type === 'prize') {
                 room.currentTurnData.prize = result;
             } else if (type === 'quantity') {
@@ -124,7 +120,6 @@ io.on('connection', (socket) => {
     socket.on('turnComplete', ({ roomId }) => {
         const room = gameRooms[roomId];
         if (room && room.queue[0] === socket.id) {
-            
             if (room.currentTurnData.playerName && room.currentTurnData.prize && room.currentTurnData.quantity) {
                 const winnerData = {
                     name: room.currentTurnData.playerName,
@@ -132,32 +127,58 @@ io.on('connection', (socket) => {
                     quantity: room.currentTurnData.quantity
                 };
                 room.winners.push(winnerData);
-                
                 room.queue.shift(); 
-                
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
-                
                 console.log(`玩家 ${socket.id} 完成抽獎，下一位...`);
                 broadcastRoomState(roomId);
             }
         }
     });
 
+    // ★ 新增：動畫同步的「轉播」功能 ★
+    socket.on('startSpinAnimation', ({ roomId, type }) => {
+        const room = gameRooms[roomId];
+        if (room) {
+            // 向房間內除了自己以外的所有人廣播
+            socket.to(roomId).broadcast.emit('playerIsSpinning', { type, spinnerId: socket.id });
+        }
+    });
+
+    // ★ 升級：處理失效模式的「斷線」功能 ★
     socket.on('disconnect', () => {
         console.log('一位玩家斷線:', socket.id);
-        for (const currentRoomId in gameRooms) {
-            const room = gameRooms[currentRoomId];
+        for (const roomId in gameRooms) {
+            const room = gameRooms[roomId];
             if (room.players[socket.id]) {
-                if (room.dealerId === socket.id) {
-                    console.log(`房間 ${currentRoomId} 的莊家已離線。`);
-                }
+                const wasActivePlayer = room.queue[0] === socket.id;
+                const wasDealer = room.dealerId === socket.id;
+
                 delete room.players[socket.id];
-                room.queue = room.queue.filter(id => id !== socket.id);
-                broadcastRoomState(currentRoomId);
+                
+                if (wasDealer) {
+                    console.log(`房間 ${roomId} 的莊家已離線。`);
+                    if (room.queue.length > 0) {
+                        const newDealerId = room.queue.shift();
+                        room.dealerId = newDealerId;
+                        console.log(`玩家 ${newDealerId} 已被提升為新莊家。`);
+                    } else {
+                        room.dealerId = null;
+                        console.log(`房間 ${roomId} 已沒有莊家。`);
+                    }
+                } else {
+                    room.queue = room.queue.filter(id => id !== socket.id);
+                }
+
+                if (wasActivePlayer) {
+                    console.log(`輪抽獎的玩家 ${socket.id} 已離線，跳過此回合。`);
+                    room.currentTurnData = { prize: null, quantity: null, playerName: null };
+                }
+                
+                broadcastRoomState(roomId);
             }
         }
     });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v5) 正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (最終功能整合版) 正在監聽 port ${PORT}`));
