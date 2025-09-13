@@ -122,7 +122,7 @@
             
             <div id="room-info" class="mb-4 p-4 bg-white rounded-lg flex flex-col md:flex-row gap-8 items-start theme-rog:bg-gray-800 theme-rog:border theme-rog:border-red-500">
     
-    <div class="w-full md:w-1/2 text-center">
+    <div id="dealer-share-info" class="w-full md:w-1/2 text-center">
         <h3 id="room-id-display" class="font-bold text-lg mb-2">載入中...</h3>
         <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
         <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
@@ -236,6 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomUrlInput = document.getElementById('room-url-input');
     const prizeManagementSection = document.getElementById('prize-management');
     const winnersSection = document.getElementById('winners-section');
+    const dealerShareInfo = document.getElementById('dealer-share-info');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+
     
     // --- 3. 函式定義區 ---
 
@@ -267,9 +270,14 @@ document.addEventListener('DOMContentLoaded', () => {
             quantities = roomState.quantities;
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
-            amIDealer = (myPlayerId === roomState.dealerId);
+           amIDealer = (myPlayerId === roomState.dealerId);
 
-            prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
+           // 根據身份，顯示或隱藏對應的區塊
+          prizeManagementSection.style.display = amIDealer ? 'block' : 'none'; // 獎項設定 (僅莊家)
+         dealerShareInfo.style.display = amIDealer ? 'block' : 'none';      // 分享資訊 (僅莊家)
+         winnersSection.style.display = 'block';                              // 光榮榜 (所有人都看得到)
+         exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';  // 匯出按鈕 (僅莊家)
+
             winnersSection.style.display = amIDealer ? 'block' : 'none';
             
             const queueList = document.getElementById('queue-list');
