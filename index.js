@@ -18,7 +18,7 @@ app.post('/create-room', (req, res) => {
         dealerId: null,
         players: {}, // { socket.id: { id: socket.id, name: 'PlayerName' } }
         queue: [],
-        winners: [], // 新增：得獎名單也由伺服器管理
+        winners: [], // 得獎名單也由伺服器管理
         currentTurnData: { prize: null, quantity: null, playerName: null },
         prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
         quantities: [ { name: '1' }, { name: '2' }, { name: '3' } ]
@@ -116,7 +116,7 @@ io.on('connection', (socket) => {
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
                 
                 setTimeout(() => {
-                    broadcastRoomState(roomId); // 廣播包含最新得獎名單的房間狀態
+                    broadcastRoomState(roomId);
                 }, 4000);
             }
         }
@@ -124,16 +124,15 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('一位玩家斷線:', socket.id);
-        for (const roomId in gameRooms) {
-            const room = gameRooms[roomId];
+        for (const currentRoomId in gameRooms) {
+            const room = gameRooms[currentRoomId];
             if (room.players[socket.id]) {
-                // 如果斷線的是莊家，可以考慮結束遊戲或轉移莊家，此處先簡化
                 if (room.dealerId === socket.id) {
-                    console.log(`房間 ${roomId} 的莊家已離線。`);
+                    console.log(`房間 ${currentRoomId} 的莊家已離線。`);
                 }
                 delete room.players[socket.id];
                 room.queue = room.queue.filter(id => id !== socket.id);
-                broadcastRoomState(roomId);
+                broadcastRoomState(currentRoomId);
             }
         }
     });
