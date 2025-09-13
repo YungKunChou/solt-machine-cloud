@@ -120,6 +120,24 @@ io.on('connection', (socket) => {
 
     socket.on('turnComplete', ({ roomId }) => {
         const room = gameRooms[roomId];
+
+// ★★★ 請在這裡加上這段除錯碼 START ★★★
+console.log("--- 收到 turnComplete 指令 ---");
+    console.log("指令發送者是:", socket.id);
+    if (room) {
+        console.log("目前排隊第一位是:", room.queue[0]);
+        console.log("裁判筆記本上的內容:", room.currentTurnData);
+    } else {
+        console.log("錯誤：找不到房間！");
+    }
+    // ★★★ 除錯碼 END ★★★
+
+    if (room && room.queue[0] === socket.id) {
+        // ... 後面的程式碼保持不變 ...
+    }
+});
+
+
         if (room && room.queue[0] === socket.id) {
             
             if (room.currentTurnData.playerName && room.currentTurnData.prize && room.currentTurnData.quantity) {
