@@ -111,8 +111,7 @@ io.on('connection', (socket) => {
                 };
                 room.winners.push(winnerData); // 將得獎者記錄在伺服器
                 
-                const finishedPlayer = room.queue.shift();
-                room.queue.push(finishedPlayer);
+                room.queue.shift(); // 玩完的人直接出隊，不再重新排隊
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
                 
                 setTimeout(() => {

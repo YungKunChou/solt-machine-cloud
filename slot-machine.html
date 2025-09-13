@@ -267,9 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
 
-            prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
-            winnersSection.style.display = amIDealer ? 'block' : 'none';
-            dealerShareInfo.style.display = amIDealer ? 'block' : 'none';
+            // 根據身份，顯示或隱藏對應的區塊
+           prizeManagementSection.style.display = amIDealer ? 'block' : 'none';      // 獎項設定 (僅莊家)
+           dealerShareInfo.style.display = amIDealer ? 'block' : 'none';          // 分享資訊 (僅莊家)
+           winnersSection.style.display = 'block';                                  // 光榮榜 (所有人都看得到)
+           exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';      // 匯出按鈕 (僅莊家)
             
             const queueList = document.getElementById('queue-list');
             queueList.innerHTML = '';
