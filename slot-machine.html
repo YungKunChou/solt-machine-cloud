@@ -136,7 +136,7 @@
         <ol id="queue-list" class="list-decimal list-inside"></ol>
     </div>
 
-</div>
+   </div>
 
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
@@ -191,12 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('item-modal').classList.add('hidden');
 
     // --- 1. 公共變數布告欄 (所有函式都能看到和使用) ---
-    // 預設資料 (將由伺服器提供權威版本)
-    let prizes = [];
-    let quantities = [];
-    let winners = [];
+    let prizes = []; // 由伺服器提供權威版本
+    let quantities = []; // 由伺服器提供權威版本
+    let winners = []; // 由伺服器提供權威版本
     
-    // 多人連線版需要的狀態
     let socket = null;
     let roomId = null;
     let myPlayerId = null;
@@ -204,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentParticipantName = null;
     let amIDealer = false; // 判斷自己是不是莊家
 
-    // 滾輪狀態
     const reelStates = {
         prize: { hasBeenSpun: false },
         quantity: { hasBeenSpun: false }
@@ -237,8 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const prizeManagementSection = document.getElementById('prize-management');
     const winnersSection = document.getElementById('winners-section');
     const dealerShareInfo = document.getElementById('dealer-share-info');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
-
     
     // --- 3. 函式定義區 ---
 
@@ -270,15 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
             quantities = roomState.quantities;
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
-           amIDealer = (myPlayerId === roomState.dealerId);
+            amIDealer = (myPlayerId === roomState.dealerId);
 
-           // 根據身份，顯示或隱藏對應的區塊
-          prizeManagementSection.style.display = amIDealer ? 'block' : 'none'; // 獎項設定 (僅莊家)
-         dealerShareInfo.style.display = amIDealer ? 'block' : 'none';      // 分享資訊 (僅莊家)
-         winnersSection.style.display = 'block';                              // 光榮榜 (所有人都看得到)
-         exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';  // 匯出按鈕 (僅莊家)
-
+            prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
             winnersSection.style.display = amIDealer ? 'block' : 'none';
+            dealerShareInfo.style.display = amIDealer ? 'block' : 'none';
             
             const queueList = document.getElementById('queue-list');
             queueList.innerHTML = '';
@@ -360,10 +351,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 【畫面渲染相關函式】(來自您的原始碼，完全保留)
     const getPrizeIcon = (name) => {
-         if (name.includes('美式')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5V15a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8H16V5h2ZM4,5H14v9a.44.44,0,0,1,0,.13V15H4Z M4,19h16v2H4Z"/></svg>`;
+        if (name.includes('美式')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5V15a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8H16V5h2ZM4,5H14v9a.44.44,0,0,1,0,.13V15H4Z M4,19h16v2H4Z"/></svg>`;
         if (name.includes('拿鐵') || name.includes('瑪奇朵')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20,3H4A2,2,0,0,0,2,5v8a4,4,0,0,0,4,4h6a4,4,0,0,0,4-4V14h2a3,3,0,0,0,3-3V5A2,2,0,0,0,20,3Zm-2,8h-2V5h2Zm-4,4H6a2,2,0,0,1-2-2V5H14ZM4,19h16v2H4Z M10,6a2.5,2.5,0,0,0-5,0,2.4,2.4,0,0,0,.5,1.5L9,11l3.5-3.5A2.4,2.4,0,0,0,13,6a2.5,2.5,0,0,0-3,0Z"/></svg>`;
         if (name.includes('星巴克') || name.includes('點心')) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16,5V4a2,2,0,0,0-2-2H4A2,2,0,0,0,2,4v8a2,2,0,0,0,2,2h8a2,2,0,0,0,2-2v-.17a3,3,0,0,1,2,0V12a2,2,0,0,0,2,2h0a2,2,0,0,0,2-2V7a2,2,0,0,0-2-2ZM14,12H4V4h10ZM20,12h0Z M22.7,15.21a1,1,0,0,0-1.13-.23,6,6,0,0,1-7.14,0,1,1,0,0,0-1.13.23,1,1,0,0,0,.24,1.12,8,8,0,0,0,9.52,0A1,1,0,0,0,22.7,15.21Z M17,18a3,3,0,0,0,3,3,3,3,0,0,0,2.12-.88A3,3,0,0,0,17,18Z"/></svg>`;
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5,6h-4.34a3,3,0,0,0-5.32,0H3.5a1,1,0,0,0-1,1V20.5a1,1,0,0,0,1,1h17a1,1,0,0,0,1-1V7A1,1,0,0,0,20.5,6ZM12,4a1,1,0,0,1,1,1,1,1,0,0,1-2,0A1,1,0,0,1,12,4Zm7.5,15.5h-15V8h3.33a3,3,0,0,0,5.34,0H19.5Z M13,11H11v4h2Zm-3,0h2v2H10Zm6,0h-2v2h2Z"/></svg>`;
+        return `<svg xmlns="http://www.w.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5,6h-4.34a3,3,0,0,0-5.32,0H3.5a1,1,0,0,0-1,1V20.5a1,1,0,0,0,1,1h17a1,1,0,0,0,1-1V7A1,1,0,0,0,20.5,6ZM12,4a1,1,0,0,1,1,1,1,1,0,0,1-2,0A1,1,0,0,1,12,4Zm7.5,15.5h-15V8h3.33a3,3,0,0,0,5.34,0H19.5Z M13,11H11v4h2Zm-3,0h2v2H10Zm6,0h-2v2h2Z"/></svg>`;
     };
     function renderAll() { renderPrizes(); renderQuantities(); renderPrizeReel(); renderQuantityReel(); renderWinners(); }
     function renderList(list, listEl, type) {
@@ -467,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 其他事件綁定
+    // 其他事件綁定 (來自您的原始碼，完全保留)
     addPrizeBtn.addEventListener('click', () => openItemModal('prize'));
     addQuantityBtn.addEventListener('click', () => openItemModal('quantity'));
     cancelModalBtn.addEventListener('click', () => itemModal.classList.add('hidden'));

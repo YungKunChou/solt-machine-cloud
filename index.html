@@ -17,7 +17,7 @@
 <body>
     <div class="container">
         <h1>拉霸雙渦輪抽獎機</h1>
-        <button id="create-room-btn">建立一個新的遊戲房間</button>
+        <button id="create-room-btn">建立VIP包廂</button>
     </div>
 
     <script>
@@ -33,19 +33,19 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // 成功後，跳轉到您的遊戲頁面(slot-machine.html)，並附上房間ID
+                        // 成功後，跳轉到您的遊戲頁面(slot-machine.html)，並附上包廂ID
                         window.location.href = `slot-machine.html?room=${data.roomId}`;
                     } else {
-                        alert('建立房間失敗！請稍後再試。');
+                        alert('建立包廂失敗！請稍後再試。');
                         createBtn.disabled = false;
-                        createBtn.textContent = '建立一個新的遊戲房間';
+                        createBtn.textContent = '建立VIP包廂';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     alert('無法連接到伺服器！');
                     createBtn.disabled = false;
-                    createBtn.textContent = '建立一個新的遊戲房間';
+                    createBtn.textContent = '建立VIP包廂';
                 });
         });
     </script>

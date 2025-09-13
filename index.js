@@ -1,4 +1,4 @@
-// index.js (最終莊家權限穩定版)
+// index.js (最終莊家權限穩定版 v2)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
