@@ -231,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTurnPlayerId = null;
     let currentParticipantName = null;
     let amIDealer = false;
+    let isInitialRender = true; // 【新增】增加一個旗標來判斷是否為首次渲染
 
     // 滾輪狀態變數，與您「雙滾輪」設計完全同步
     const reelStates = {
@@ -333,7 +334,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawStatus.textContent = `現在輪到 ${currentPlayerName}...`;
                 participantNameInput.placeholder = "等待輪到你...";
             }
-            renderAll({ reRenderReels: !reelStates.prize.isSpinning && !reelStates.quantity.isSpinning });
+            
+            // ★★★ 關鍵修正：檢查是否有滾輪正在顯示結果，如果有就跳過重新渲染 ★★★
+            const isShowingAnyResult = reelStates.prize.isShowingResult || reelStates.quantity.isShowingResult;
+            const isAnySpinning = reelStates.prize.isSpinning || reelStates.quantity.isSpinning;
+            
+            // ★★★ 關鍵修正：使用 isInitialRender 旗標來決定是否在初次載入時渲染滾輪 ★★★
+            if (isInitialRender) {
+                console.log('✅ 執行首次完整渲染 (包含滾輪)');
+                renderAll({ reRenderReels: true }); // 首次載入，強制渲染滾輪
+                isInitialRender = false; // 將旗標設為 false，之後就不會再進來了
+             } else if (isShowingAnyResult) {
+               console.log('⚠️ 跳過房間狀態更新的滾輪渲染 - 正在顯示獲獎結果');
+               renderPrizes();
+               renderQuantities();
+               renderWinners();
+             } else {
+               console.log('🔄 執行後續的狀態更新渲染 (不包含滾輪)');
+               renderAll({ reRenderReels: false }); // 後續更新，不重繪滾輪，避免畫面跳動
+             }
         });
 
         // ★★★ 新增：接收動畫同步指令 ★★★
@@ -482,20 +501,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function finalizeSpin(type) {
-        const state = reelStates[type];
-        state.isSpinning = false;
-        state.isStopping = false;
-        if (reelStates.prize.finalResult && reelStates.quantity.finalResult) {
-            // ★★★ 修改：改為廣播得獎特效 ★★★
-            socket.emit('broadcastAnimation', {
-                roomId,
-                action: 'winner',
-                playerId: myPlayerId
-            });
-        }
-        checkAndRecordWin();
-    }
+     function finalizeSpin(type) {
+      const state = reelStates[type];
+      state.isSpinning = false;
+      state.isStopping = false;
+      if (reelStates.prize.finalResult && reelStates.quantity.finalResult) {
+          // 廣播給其他玩家看特效
+          socket.emit('broadcastAnimation', {
+              roomId,
+              action: 'winner',
+              playerId: myPlayerId
+          });
+        
+          // 【新增】自己本地端也要同步觸發特效
+          slotWindow.classList.add('winner-flash');
+          setTimeout(() => {
+            slotWindow.classList.remove('winner-flash');
+            // 順便移除觀眾模式，以防萬一
+            slotWindow.classList.remove('spectator-mode'); 
+        }, 4000); // 這裡的 4000ms 與 handleAnimationSync 中的時長保持一致
+       }
+      checkAndRecordWin();
+     }
             
     function startSlowingDown(type, isAuto = false) {
         const state = reelStates[type];
@@ -614,7 +641,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         state.hasBeenSpun = true;
-        state.isSpinning = true;
         state.isStopping = false;
         state.finalResult = null;
         socket.emit('spin', { roomId, type, playerName: currentParticipantName });
@@ -636,6 +662,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         renderPrizeReel();
         renderQuantityReel();
+
+        state.isSpinning = true; // << 將狀態設定移到渲染之後！
 
         reelEl.style.transition = 'none';
         reelEl.style.transform = 'translateY(0px)';
