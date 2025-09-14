@@ -76,24 +76,37 @@
         .theme-rog .theme-btn.active { background: linear-gradient(45deg, #e60032, #ff4c6b); border: 1px solid #ff4c6b; color: white; }
         .theme-rog .btn-danger { background: linear-gradient(45deg, #e60032, #ff4c6b); color: white; border: 1px solid #ff4c6b; }
         .theme-rog .btn-danger:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); box-shadow: 0 4px 8px rgba(0,0,0,0.6), 0 0 10px #ff4c6b; }
-          /* --- ROG 風格下，房間資訊區塊的標題顏色 --- */
-        .theme-rog #room-info h4 {
-         color: #ff4c6b; /* 將標題改為亮紅色 */
-         text-shadow: none; /* 取消紅色光暈，讓文字更清晰 */
+        .theme-rog #room-info h4 { color: #ff4c6b; text-shadow: none; }
+        .theme-rog #winners-table-container > div:first-child > div { color: #B0B0B0; text-shadow: none; }
+        .theme-rog #queue-list li { color: #f5f5f5; }
+        #winners-table > div { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+        
+        /* 新增：當前玩家狀態指示 */
+        .current-player-indicator { 
+            position: absolute; 
+            top: -10px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #FF6B6B; 
+            color: white; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            font-weight: bold;
+            z-index: 10;
+            animation: pulse 2s infinite;
         }
-        /* --- ROG 風格下，光榮榜標題的顏色 --- */
-        .theme-rog #winners-table-container > div:first-child > div {
-         color: #B0B0B0; /* 將標題改為淺灰色 */
-         text-shadow: none; /* 同樣取消光暈讓文字更清晰 */
+        
+        @keyframes pulse {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+            100% { transform: translateX(-50%) scale(1); }
         }
-        /* --- ROG 風格下，排隊列表一般玩家的顏色 --- */
-        .theme-rog #queue-list li {
-         color: #f5f5f5; /* 例如改成純白色 */
-        }
-        /* --- 縮小光榮榜的行距 --- */
-        #winners-table > div {
-         padding-top: 0.3rem;
-         padding-bottom: 0.3rem;
+        
+        /* 觀眾模式提示 */
+        .spectator-mode { 
+            opacity: 0.8; 
+            pointer-events: none; 
         }
     </style>
 </head>
@@ -106,7 +119,7 @@
         </header>
         <div class="relative flex justify-center items-center mb-8">
             <div id="theme-switcher" class="flex justify-center gap-4">
-                <button data-theme="default" class="btn btn-secondary theme-btn">中川政七風格</button>
+                <button data-theme="default" class="btn btn-secondary theme-btn">中式政七風格</button>
                 <button data-theme="rog" class="btn btn-secondary theme-btn">ASUS ROG 風格</button>
             </div>
             <div id="youtube-player-controls" class="absolute right-0 flex items-center gap-2">
@@ -159,7 +172,7 @@
             <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 theme-rog:bg-black/25 text-sm">
               <div class="col-span-2 whitespace-nowrap">得獎人</div>
               <div class="col-span-5 whitespace-nowrap">抽中獎項</div>
-              <div class="text-center col-span-1 whitespace-nowrap">数量</div>
+              <div class="text-center col-span-1 whitespace-nowrap">數量</div>
             </div>
             <div id="winners-table" class="max-h-48 overflow-y-auto"></div>
         </div>
@@ -170,6 +183,9 @@
             
             <div id="slot-machine-wrapper">
                 <div class="slot-machine">
+                    <!-- 新增：當前玩家指示器 -->
+                    <div id="current-player-indicator" class="current-player-indicator" style="display: none;"></div>
+                    
                     <div class="slot-window-wrapper">
                         <div id="slot-window" class="slot-window">
                              <div id="prize-reel-container" class="reel-container">
@@ -205,7 +221,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. 公共變數布告欄 ---
+    // --- 1. 公共變數佈告欄 ---
     let prizes = [];
     let quantities = [];
     let winners = [];
@@ -216,13 +232,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentParticipantName = null;
     let amIDealer = false;
 
-    // 滾輪狀態變數，與您「雙渦輪」設計完全同步
+    // 滾輪狀態變數，與您「雙滾輪」設計完全同步
     const reelStates = {
         prize: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false },
         quantity: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false }
     };
     
-    // --- 2. DOM 零件定義區 (來自您的原始碼，完整無缺) ---
+    // --- 2. DOM 元件定義區 (來自您的原始碼，完整無缺) ---
     const prizeList = document.getElementById('prize-list');
     const quantityList = document.getElementById('quantity-list');
     const addPrizeBtn = document.getElementById('add-prize-btn');
@@ -249,11 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const prizeManagementSection = document.getElementById('prize-management');
     const winnersSection = document.getElementById('winners-section');
     const dealerShareInfo = document.getElementById('dealer-share-info');
+    const currentPlayerIndicator = document.getElementById('current-player-indicator');
 
     // --- 3. 函式定義區 ---
 
     function initializeMultiplayer() {
-        const backendUrl = 'https://solt-machine.onrender.com'; // ★★★ 請再次確認這是您正確的後端網址 ★★★
+        const backendUrl = 'https://solt-machine.onrender.com'; 
         socket = io(backendUrl);
         const urlParams = new URLSearchParams(window.location.search);
         roomId = urlParams.get('room');
@@ -286,6 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
             winnersSection.style.display = 'block';
             exportCsvBtn.style.display = amIDealer ? 'inline-block' : 'none';
             
+            // 更新當前玩家指示器
+            updateCurrentPlayerIndicator(roomState);
+            
             const queueList = document.getElementById('queue-list');
             queueList.innerHTML = '';
             (roomState.queue || []).forEach((playerId, index) => {
@@ -315,6 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderAll({ reRenderReels: !reelStates.prize.isSpinning && !reelStates.quantity.isSpinning });
         });
+
+        // ★★★ 新增：接收動畫同步指令 ★★★
+        socket.on('animationSync', (data) => {
+            console.log('收到動畫同步指令:', data);
+            handleAnimationSync(data);
+        });
         
         socket.on('nameError', (message) => {
             alert(message);
@@ -334,6 +360,119 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('error', (msg) => alert('錯誤：' + msg));
     }
 
+    // ★★★ 新增：處理同步動畫的函式 ★★★
+    function handleAnimationSync(data) {
+        const { action, type, playerId, playerName } = data;
+        
+        if (action === 'leverPull') {
+            // 同步拉桿動畫
+            const leverEl = type === 'prize' ? leverLeft : leverRight;
+            leverEl.classList.add('pulled');
+            
+            // 如果不是自己在玩，顯示觀眾模式
+            if (playerId !== myPlayerId) {
+                slotWindow.classList.add('spectator-mode');
+            }
+            
+        } else if (action === 'startSpin') {
+            // 同步開始滾動動畫
+            syncStartSpin(type);
+            
+        } else if (action === 'stopSpin') {
+            // 同步停止滾動動畫
+            syncStopSpin(type, data.finalResult, data.isAuto);
+            
+        } else if (action === 'winner') {
+            // 同步得獎特效
+            slotWindow.classList.add('winner-flash');
+            setTimeout(() => {
+                slotWindow.classList.remove('winner-flash');
+                slotWindow.classList.remove('spectator-mode');
+            }, 4000);
+        }
+    }
+
+    // ★★★ 新增：更新當前玩家指示器 ★★★
+    function updateCurrentPlayerIndicator(roomState) {
+        const currentPlayer = roomState.players[currentTurnPlayerId];
+        if (currentPlayer && currentPlayer.name) {
+            currentPlayerIndicator.textContent = `${currentPlayer.name} 正在抽獎`;
+            currentPlayerIndicator.style.display = 'block';
+        } else {
+            currentPlayerIndicator.style.display = 'none';
+        }
+    }
+
+    // ★★★ 新增：同步滾動開始動畫 ★★★
+    function syncStartSpin(type) {
+        const state = reelStates[type];
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        
+        // 確保滾輪內容是最新的
+        if (type === 'prize') {
+            renderPrizeReel();
+        } else {
+            renderQuantityReel();
+        }
+
+        reelEl.style.transition = 'none';
+        reelEl.style.transform = 'translateY(0px)';
+        void reelEl.offsetWidth; // 強制重繪
+
+        const spinDuration = 5000;
+        reelEl.style.transition = `transform ${spinDuration}ms linear`;
+        reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
+    }
+
+    // ★★★ 新增：同步滾動停止動畫 ★★★  
+    function syncStopSpin(type, finalResult, isAuto = false) {
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+        if(reelItems.length === 0) return;
+        
+        const itemHeight = reelItems[0].offsetHeight;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        const style = window.getComputedStyle(reelEl);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const currentY = matrix.m42;
+        const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
+        
+        let finalTargetIndex = -1;
+        for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
+            if (reelItems[i] && reelItems[i].dataset.name === finalResult) {
+                finalTargetIndex = i;
+                break;
+            }
+        }
+        
+        if (finalTargetIndex === -1) {
+            const newReelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+            for(let i = 0; i < newReelItems.length; i++) {
+                 if (newReelItems[i] && newReelItems[i].dataset.name === finalResult) {
+                    finalTargetIndex = i + Math.floor(newReelItems.length / 2);
+                    break;
+                }
+            }
+            if (finalTargetIndex === -1) finalTargetIndex = currentItemIndex + 10;
+        }
+        
+        const targetPosition = finalTargetIndex * itemHeight;
+        const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+        const stopDuration = 2500 + Math.random() * 1000;
+        
+        reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+        reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+        
+        // 拉桿回位時機
+        const leverEl = type === 'prize' ? leverLeft : leverRight;
+        if (isAuto) {
+            setTimeout(() => leverEl.classList.remove('pulled'), stopDuration - 400);
+        } else {
+            leverEl.classList.remove('pulled');
+        }
+    }
+
     function checkAndRecordWin() {
         if (reelStates.prize.finalResult !== null && reelStates.quantity.finalResult !== null) {
             socket.emit('turnComplete', { roomId });
@@ -348,118 +487,169 @@ document.addEventListener('DOMContentLoaded', () => {
         state.isSpinning = false;
         state.isStopping = false;
         if (reelStates.prize.finalResult && reelStates.quantity.finalResult) {
-            slotWindow.classList.add('winner-flash');
-            setTimeout(() => {
-                slotWindow.classList.remove('winner-flash');
-            }, 4000);
+            // ★★★ 修改：改為廣播得獎特效 ★★★
+            socket.emit('broadcastAnimation', {
+                roomId,
+                action: 'winner',
+                playerId: myPlayerId
+            });
         }
         checkAndRecordWin();
     }
             
-    // ↓↓↓ 用這個【更新版】，替換掉您舊的 startSlowingDown 函式 ↓↓↓
-    function startSlowingDown(type, isAuto = false) { // ★★★ 修改點：接收 isAuto 參數 ★★★
-    const state = reelStates[type];
-    if (state.isStopping || !state.finalResult) {
-        if (state.isSpinning) { setTimeout(() => startSlowingDown(type, isAuto), 100); }
-        return;
-    }
-    state.isStopping = true;
-    const reelEl = type === 'prize' ? prizeReel : quantityReel;
-    const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
-    if(reelItems.length === 0) return;
-    const itemHeight = reelItems[0].offsetHeight;
-    const windowHeight = reelEl.parentElement.offsetHeight;
-    const style = window.getComputedStyle(reelEl);
-    const matrix = new DOMMatrixReadOnly(style.transform);
-    const currentY = matrix.m42;
-    const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
-    const wonResult = state.finalResult;
-    let finalTargetIndex = -1;
-    for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
-        if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
-            finalTargetIndex = i;
-            break;
+    function startSlowingDown(type, isAuto = false) {
+        const state = reelStates[type];
+        if (state.isStopping || !state.finalResult) {
+            if (state.isSpinning) { setTimeout(() => startSlowingDown(type, isAuto), 100); }
+            return;
         }
-    }
-    if (finalTargetIndex === -1) {
-        const newReelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
-        for(let i = 0; i < newReelItems.length; i++) {
-             if (newReelItems[i] && newReelItems[i].dataset.name === wonResult) {
-                finalTargetIndex = i + Math.floor(newReelItems.length / 2);
+        state.isStopping = true;
+        
+        // ★★★ 修正：廣播停止動畫時傳遞正確的結果 ★★★
+        socket.emit('broadcastAnimation', {
+            roomId,
+            action: 'stopSpin',
+            type,
+            playerId: myPlayerId,
+            finalResult: state.finalResult, // 傳遞正確的抽獎結果
+            isAuto
+        });
+
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const reelItems = Array.from(reelEl.querySelectorAll('.reel-item'));
+        if(reelItems.length === 0) return;
+        const itemHeight = reelItems[0].offsetHeight;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        const style = window.getComputedStyle(reelEl);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const currentY = matrix.m42;
+        const currentItemIndex = Math.round(Math.abs(currentY) / itemHeight);
+        const wonResult = state.finalResult;
+        let finalTargetIndex = -1;
+        
+        // ★★★ 實際玩家也使用相同的邏輯確保結果正確 ★★★
+        for(let i = currentItemIndex + 5; i < reelItems.length; i++) {
+            if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
+                finalTargetIndex = i;
                 break;
             }
         }
-        if (finalTargetIndex === -1) finalTargetIndex = currentItemIndex + 10;
-    }
-    const targetPosition = finalTargetIndex * itemHeight;
-    const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
-    const stopDuration = 2500 + Math.random() * 1000;
-    reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
-    reelEl.style.transform = `translateY(-${centeredPosition}px)`;
-    
-    // ★★★ 關鍵修改：根據是否為自動，決定拉桿回位時機 ★★★
-    const leverEl = type === 'prize' ? leverLeft : leverRight;
-    if (isAuto) {
-        // 自動煞停：在動畫快結束時才回位
-        setTimeout(() => leverEl.classList.remove('pulled'), stopDuration - 400);
-    } else {
-        // 手動煞停：立刻回位
-        leverEl.classList.remove('pulled');
-    }
-
-    const onTransitionEnd = () => {
-        finalizeSpin(type);
-        reelEl.removeEventListener('transitionend', onTransitionEnd);
-    };
-    reelEl.addEventListener('transitionend', onTransitionEnd);
-}
+        if (finalTargetIndex === -1) {
+            for(let i = 0; i < reelItems.length; i++) {
+                if (reelItems[i] && reelItems[i].dataset.name === wonResult) {
+                    finalTargetIndex = Math.max(i, currentItemIndex + 8);
+                    break;
+                }
+            }
+        }
+        
+        // 如果仍然沒找到，強制創建
+        if (finalTargetIndex === -1) {
+            console.warn(`玩家端警告：無法找到結果 "${wonResult}"，強制添加`);
+            const newItem = document.createElement('div');
+            newItem.className = type === 'prize' ? 'reel-item' : 'reel-item quantity-item';
+            newItem.dataset.name = wonResult;
             
-    // ↓↓↓ 用這個【更新版】，替換掉您舊的 handleSpin 函式 ↓↓↓
+            if (type === 'prize') {
+                newItem.innerHTML = `${getPrizeIcon(wonResult)}<span>${wonResult}</span>`;
+            } else {
+                newItem.innerHTML = wonResult;
+            }
+            
+            const insertPosition = currentItemIndex + 8;
+            if (reelItems[insertPosition]) {
+                reelItems[insertPosition].parentNode.insertBefore(newItem, reelItems[insertPosition]);
+            } else {
+                reelEl.appendChild(newItem);
+            }
+            finalTargetIndex = insertPosition;
+        }
+        
+        const targetPosition = finalTargetIndex * itemHeight;
+        const centeredPosition = targetPosition - (windowHeight / 2) + (itemHeight / 2);
+        const stopDuration = 2500 + Math.random() * 1000;
+        reelEl.style.transition = `transform ${stopDuration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+        reelEl.style.transform = `translateY(-${centeredPosition}px)`;
+        
+        const leverEl = type === 'prize' ? leverLeft : leverRight;
+        if (isAuto) {
+            setTimeout(() => leverEl.classList.remove('pulled'), stopDuration - 400);
+        } else {
+            leverEl.classList.remove('pulled');
+        }
+
+        const onTransitionEnd = () => {
+            finalizeSpin(type);
+            reelEl.removeEventListener('transitionend', onTransitionEnd);
+        };
+        reelEl.addEventListener('transitionend', onTransitionEnd);
+        
+        console.log(`玩家停止滾輪 ${type}，結果：${wonResult}，位置：${finalTargetIndex}`);
+    }
+            
     function handleSpin(type) {
-    if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
-    const state = reelStates[type];
-    
-    // 優先處理「手動煞停」
-    if (state.isSpinning && !state.isStopping) {
-        clearTimeout(state.spinEndTimeout);
-        startSlowingDown(type, false); // ★★★ 修改點：告訴函式這不是自動的 (false) ★★★
-        return;
+        if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
+        const state = reelStates[type];
+        
+        // ★★★ 修改：廣播拉桿動畫 ★★★
+        socket.emit('broadcastAnimation', {
+            roomId,
+            action: 'leverPull',
+            type,
+            playerId: myPlayerId,
+            playerName: currentParticipantName
+        });
+        
+        // 優先處理「手動煞停」
+        if (state.isSpinning && !state.isStopping) {
+            clearTimeout(state.spinEndTimeout);
+            startSlowingDown(type, false);
+            return;
+        }
+
+        if (state.isSpinning) return;
+        
+        if (state.hasBeenSpun) {
+            drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
+        }
+
+        state.hasBeenSpun = true;
+        state.isSpinning = true;
+        state.isStopping = false;
+        state.finalResult = null;
+        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
+        
+        (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
+        drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
+        
+        // ★★★ 修改：廣播滾動開始動畫 ★★★
+        socket.emit('broadcastAnimation', {
+            roomId,
+            action: 'startSpin',
+            type,
+            playerId: myPlayerId,
+            playerName: currentParticipantName
+        });
+        
+        const reelEl = type === 'prize' ? prizeReel : quantityReel;
+        const windowHeight = reelEl.parentElement.offsetHeight;
+        
+        renderPrizeReel();
+        renderQuantityReel();
+
+        reelEl.style.transition = 'none';
+        reelEl.style.transform = 'translateY(0px)';
+        void reelEl.offsetWidth;
+
+        const spinDuration = 5000;
+        reelEl.style.transition = `transform ${spinDuration}ms linear`;
+        reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
+
+        // 設定「自動煞停」計時器
+        state.spinEndTimeout = setTimeout(() => {
+            startSlowingDown(type, true);
+        }, spinDuration - 1000);
     }
-
-    if (state.isSpinning) return;
-    
-    if (state.hasBeenSpun) {
-        drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
-    }
-
-    state.hasBeenSpun = true;
-    state.isSpinning = true;
-    state.isStopping = false;
-    state.finalResult = null;
-    socket.emit('spin', { roomId, type, playerName: currentParticipantName });
-    
-    (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
-    drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
-    
-    const reelEl = type === 'prize' ? prizeReel : quantityReel;
-    const windowHeight = reelEl.parentElement.offsetHeight;
-    
-    renderPrizeReel();
-    renderQuantityReel();
-
-    reelEl.style.transition = 'none';
-    reelEl.style.transform = 'translateY(0px)';
-    void reelEl.offsetWidth;
-
-    const spinDuration = 5000;
-    reelEl.style.transition = `transform ${spinDuration}ms linear`;
-    reelEl.style.transform = `translateY(-${reelEl.scrollHeight - windowHeight}px)`;
-
-    // 設定「自動煞停」計時器
-    state.spinEndTimeout = setTimeout(() => {
-        startSlowingDown(type, true); // ★★★ 修改點：告訴函式這是自動的 (true) ★★★
-    }, spinDuration - 1000);
-}
 
     function renderAll(options = {}) {
         const { reRenderReels = true } = options;
@@ -509,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
         winners.forEach(winner => {
             const row = document.createElement('div');
-            row.className = 'grid grid-cols-8 items-center'; // 改成 8 欄，並讓內容垂直置中
+            row.className = 'grid grid-cols-8 items-center';
             row.innerHTML = `<div class="col-span-2">${winner.name}</div><div class="col-span-5">${winner.prize}</div><div class="text-center col-span-1">${winner.quantity}</div>`;
             winnersTable.appendChild(row);
         });
@@ -585,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         winners.forEach(row => { csvContent += `${row.name},${row.prize},${row.quantity}\n`; });
         const link = document.createElement('a');
         link.setAttribute('href', encodeURI(csvContent));
-        link.setAttribute('download', '雙渦輪得獎名單.csv');
+        link.setAttribute('download', '雙滾輪得獎名單.csv');
         link.click();
     });
     themeSwitcher.addEventListener('click', (e) => {
