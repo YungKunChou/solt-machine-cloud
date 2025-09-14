@@ -1,4 +1,4 @@
-// index.js (最終權威修正版 v5)
+// index.js (同步動畫版 v6)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -13,7 +13,7 @@ const gameRooms = {};
 
 // 健康檢查路徑
 app.get('/', (req, res) => {
-    res.status(200).send('Game server is running.');
+    res.status(200).send('Game server with animation sync is running.');
 });
 
 app.post('/create-room', (req, res) => {
@@ -25,8 +25,20 @@ app.post('/create-room', (req, res) => {
         queue: [],
         winners: [],
         currentTurnData: { prize: null, quantity: null, playerName: null },
-        prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
-        quantities: [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' } , { name: '1' }]
+        prizes: [ 
+            { name: '大杯美式咖啡' }, 
+            { name: '特大美式咖啡' }, 
+            { name: '大杯拿鐵咖啡' }, 
+            { name: '特大拿鐵咖啡' }, 
+            { name: '星巴克焦糖瑪奇朵' } 
+        ],
+        quantities: [ 
+            { name: '1' }, 
+            { name: '2' }, 
+            { name: '3' }, 
+            { name: '2' } , 
+            { name: '1' }
+        ]
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
@@ -68,6 +80,24 @@ io.on('connection', (socket) => {
             }
             room.players[socket.id].name = name;
             broadcastRoomState(roomId);
+        }
+    });
+
+    // ★★★ 新增：處理動畫廣播 ★★★
+    socket.on('broadcastAnimation', ({ roomId, action, type, playerId, playerName, finalResult, isAuto }) => {
+        const room = gameRooms[roomId];
+        if (room && room.players[socket.id]) {
+            console.log(`廣播動畫: ${action} - ${type} - 玩家: ${playerName}`);
+            
+            // 廣播給房間內所有其他玩家
+            socket.to(roomId).emit('animationSync', {
+                action,
+                type,
+                playerId,
+                playerName,
+                finalResult,
+                isAuto
+            });
         }
     });
 
@@ -117,6 +147,8 @@ io.on('connection', (socket) => {
             } else if (type === 'quantity') {
                 room.currentTurnData.quantity = result;
             }
+            
+            console.log(`${playerName} 抽到 ${type}: ${result}`);
             socket.emit('spinResult', { type, result });
         }
     });
@@ -132,6 +164,8 @@ io.on('connection', (socket) => {
                     quantity: room.currentTurnData.quantity
                 };
                 room.winners.push(winnerData);
+                
+                console.log(`🎉 ${winnerData.name} 獲得 ${winnerData.quantity} 個 ${winnerData.prize}！`);
                 
                 room.queue.shift(); 
                 
@@ -160,4 +194,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v5) 正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (同步動畫版 v6) 正在監聽 port ${PORT}`));
