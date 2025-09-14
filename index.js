@@ -1,4 +1,4 @@
-// index.js (最終莊家權限穩定版 v3)
+// index.js (最終權威修正版 v5)
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -21,12 +21,12 @@ app.post('/create-room', (req, res) => {
     gameRooms[roomId] = {
         id: roomId,
         dealerId: null,
-        players: {}, // { socket.id: { id: socket.id, name: 'PlayerName' } }
+        players: {},
         queue: [],
-        winners: [], // 得獎名單也由伺服器管理
+        winners: [],
         currentTurnData: { prize: null, quantity: null, playerName: null },
         prizes: [ { name: '大杯美式咖啡' }, { name: '特大美式咖啡' }, { name: '大杯拿鐵咖啡' }, { name: '特大拿鐵咖啡' }, { name: '星巴克焦糖瑪奇朵' } ],
-        quantities: [ { name: '1' }, { name: '2' }, { name: '3' } ]
+        quantities: [ { name: '1' }, { name: '2' }, { name: '3' }, { name: '2' } , { name: '1' }]
     };
     console.log(`新房間已建立: ${roomId}`);
     res.json({ success: true, roomId: roomId });
@@ -46,15 +46,12 @@ io.on('connection', (socket) => {
         if (room) {
             socket.join(roomId);
             room.players[socket.id] = { id: socket.id, name: null };
-            
             if (!room.dealerId) {
                 room.dealerId = socket.id;
                 console.log(`玩家 ${socket.id} 成為房間 ${roomId} 的莊家`);
             } else {
                 room.queue.push(socket.id);
             }
-
-            console.log(`玩家 ${socket.id} 加入了房間 ${roomId}`);
             broadcastRoomState(roomId);
         } else {
             socket.emit('error', '房間不存在');
@@ -70,7 +67,6 @@ io.on('connection', (socket) => {
                 return;
             }
             room.players[socket.id].name = name;
-            console.log(`玩家 ${socket.id} 設定名稱為: ${name}`);
             broadcastRoomState(roomId);
         }
     });
@@ -79,7 +75,6 @@ io.on('connection', (socket) => {
         const room = gameRooms[roomId];
         if (room && room.dealerId === socket.id) {
             room.prizes = prizes;
-            console.log(`莊家 ${socket.id} 更新了房間 ${roomId} 的獎項`);
             broadcastRoomState(roomId);
         }
     });
@@ -88,7 +83,6 @@ io.on('connection', (socket) => {
         const room = gameRooms[roomId];
         if (room && room.dealerId === socket.id) {
             room.quantities = quantities;
-            console.log(`莊家 ${socket.id} 更新了房間 ${roomId} 的數量`);
             broadcastRoomState(roomId);
         }
     });
@@ -111,14 +105,17 @@ io.on('connection', (socket) => {
             let sourceList = [];
             if (type === 'prize' && room.prizes.length > 0) {
                 sourceList = room.prizes.map(p => p.name);
-                result = sourceList[Math.floor(Math.random() * sourceList.length)];
-                room.currentTurnData.prize = result;
             } else if (type === 'quantity' && room.quantities.length > 0) {
                 sourceList = room.quantities.map(q => q.name);
+            }
+            if (sourceList.length > 0) {
                 result = sourceList[Math.floor(Math.random() * sourceList.length)];
+            }
+            
+            if (type === 'prize') {
+                room.currentTurnData.prize = result;
+            } else if (type === 'quantity') {
                 room.currentTurnData.quantity = result;
-            } else {
-                return;
             }
             socket.emit('spinResult', { type, result });
         }
@@ -136,7 +133,7 @@ io.on('connection', (socket) => {
                 };
                 room.winners.push(winnerData);
                 
-                room.queue.shift(); // 一人一次規則
+                room.queue.shift(); 
                 
                 room.currentTurnData = { prize: null, quantity: null, playerName: null };
                 
@@ -163,4 +160,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v4) 正在監聽 port ${PORT}`));
+server.listen(PORT, () => console.log(`遊戲大腦 (最終權威版 v5) 正在監聽 port ${PORT}`));
