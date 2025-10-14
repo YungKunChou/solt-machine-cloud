@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雲端拉霸遊戲 - 使用者指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 整體風格設定 */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #1a1a2e; /* 深藍色背景，營造夜晚賭城氛圍 */
+            color: #e0e0e0;
+        }
+        /* 導覽列連結樣式 */
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link:hover {
+            color: #f7b733; /* 金色懸停效果 */
+        }
+        .nav-link.active {
+            color: #f7b733;
+            border-bottom-color: #f7b733;
+        }
+        /* 區塊淡入動畫 */
+        .section-fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .section-fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- 頂部固定導覽列 -->
+    <header class="sticky top-0 bg-[#1a1a2e]/80 backdrop-blur-md z-50 shadow-lg shadow-black/20">
+        <nav class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="text-xl font-bold text-[#f7b733]">雲端拉霸：使用者指南</div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#overview" class="nav-link border-b-2 border-transparent pb-1">遊戲總覽</a>
+                    <a href="#logic" class="nav-link border-b-2 border-transparent pb-1">核心特色</a>
+                    <a href="#flow" class="nav-link border-b-2 border-transparent pb-1">遊玩流程</a>
+                    <a href="#architecture" class="nav-link border-b-2 border-transparent pb-1">互動架構</a>
+                    <a href="#output" class="nav-link border-b-2 border-transparent pb-1">成果紀錄</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 md:py-12">
+        
+        <!-- 1. 遊戲總覽 -->
+        <section id="overview" class="text-center mb-16 md:mb-24 section-fade-in">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">歡迎來到雲端拉霸</h1>
+            <p class="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto mb-10">
+                這不僅僅是一個單人拉霸遊戲。它採用了現代化的雲端架構，打造一個支援多人排隊、即時轉播的互動娛樂平台。本文件將帶您輕鬆了解其運作特色與遊玩方式。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div class="bg-[#2c2c54]/50 p-6 rounded-xl shadow-md border border-gray-700/50 flex flex-col items-center">
+                    <svg class="w-16 h-16 mb-4 text-[#fc4a1a]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <div class="text-2xl font-bold text-[#fc4a1a]">精美介面</div>
+                    <div class="text-gray-300 mt-2">我們打造了電影般的遊戲大廳與流暢的操作體驗，讓您身歷其境。</div>
+                </div>
+                <div class="bg-[#2c2c54]/50 p-6 rounded-xl shadow-md border border-gray-700/50 flex flex-col items-center">
+                    <svg class="w-16 h-16 mb-4 text-[#f7b733]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                    <div class="text-2xl font-bold text-[#f7b733]">雲端運算</div>
+                    <div class="text-gray-300 mt-2">遊戲的核心結果由功能強大的雲端伺服器決定，確保每一次拉霸都公平公正。</div>
+                </div>
+                <div class="bg-[#2c2c54]/50 p-6 rounded-xl shadow-md border border-gray-700/50 flex flex-col items-center">
+                    <svg class="w-16 h-16 mb-4 text-[#3498db]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    <div class="text-2xl font-bold text-[#3498db]">多人排隊系統</div>
+                    <div class="text-gray-300 mt-2">玩家們將依序排隊遊玩，系統會自動管理遊戲順序，打造井然有序的娛樂體驗。</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 核心特色 -->
+        <section id="logic" class="mb-16 md:mb-24 section-fade-in">
+            <h2 class="text-3xl font-bold text-center mb-4 text-white">核心特色：智慧分工架構</h2>
+            <p class="text-center text-gray-400 max-w-2xl mx-auto mb-12">
+                遊戲採用了「智慧分工」的先進架構。您眼前的網頁專心負責呈現華麗的畫面，而所有複雜的遊戲計算，都交給了遠端的雲端主機處理。
+            </p>
+            <div class="bg-[#2c2c54]/80 p-8 rounded-lg shadow-xl border border-gray-700/50">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-[#f7b733]">一切從點擊開始</h3>
+                <div class="flex flex-col md:flex-row items-center justify-center gap-8 text-center">
+                    <svg class="w-24 h-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <div class="text-4xl font-mono text-[#f7b733] animate-pulse">&lt;---&gt;</div>
+                    <svg class="w-24 h-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9V3m0 18a9 9 0 009-9m-9 9a9 9 0 00-9-9"></path></svg>
+                </div>
+                <p class="text-center text-gray-300 my-8">
+                    當您輸入姓名並按下「加入隊列」按鈕時，您的網頁會立刻安全地將您的姓名資訊傳送給雲端主機。主機收到後，會馬上為您安排位置，並將您的排隊號碼傳回網頁顯示，過程迅速無感。
+                </p>
+                <p class="text-center text-gray-400 mt-6 text-sm">
+                    這種分工合作的模式，確保您的裝置不需消耗大量資源，就能享受到最流暢、最公平的遊戲體驗。
+                </p>
+            </div>
+        </section>
+
+        <!-- 3. 遊玩流程 -->
+        <section id="flow" class="mb-16 md:mb-24 section-fade-in">
+            <h2 class="text-3xl font-bold text-center mb-4 text-white">雙軌遊玩流程：玩家與莊家</h2>
+            <p class="text-center text-gray-400 max-w-4xl mx-auto mb-12">
+                遊戲提供了兩種核心路徑：玩家可以加入現有的遊戲排隊遊玩，而莊家則可以建立新的遊戲包廂。兩種流程各自獨立，共同構成完整的互動體驗。
+            </p>
+            <div class="grid md:grid-cols-2 gap-16">
+                <!-- 玩家流程 -->
+                <div>
+                    <h3 class="text-2xl font-bold text-center mb-8 text-[#3498db]">玩家流程：排隊遊玩</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">① 玩家輸入姓名，加入隊列</div>
+                                <div class="text-sm text-gray-400">前端將姓名傳送至後端</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">② 進入排隊列表</div>
+                                <div class="text-sm text-gray-400">後端管理佇列，前端即時顯示排隊狀態</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">③ 輪到順序，開始遊玩</div>
+                                <div class="text-sm text-gray-400">後端通知玩家，進入專屬遊戲室</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">④ 莊家/觀眾頁面即時轉播</div>
+                                <div class="text-sm text-gray-400">後端將遊戲過程即時廣播出去</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">⑤ 拉霸結果上傳光榮榜</div>
+                                <div class="text-sm text-gray-400">遊戲結束後，成績被儲存至資料庫</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 莊家流程 -->
+                <div>
+                    <h3 class="text-2xl font-bold text-center mb-8 text-[#f7b733]">莊家流程：建立包廂</h3>
+                    <div class="space-y-4">
+                         <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">① 進入大廳</div>
+                                <div class="text-sm text-gray-400">(index.html)</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">② 點擊按鈕建立包廂</div>
+                                <div class="text-sm text-gray-400">(發送 API 請求)</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">③ 成功後跳轉</div>
+                                <div class="text-sm text-gray-400">(攜帶 Room ID)</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl text-[#f7b733] font-mono text-center">↓</div>
+                        <div class="flex items-center justify-center">
+                            <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
+                                <div class="font-bold text-lg">④ 進入遊戲室</div>
+                                <div class="text-sm text-gray-400">(slot-machine.html)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 互動架構 -->
+        <section id="architecture" class="mb-16 md:mb-24 section-fade-in">
+            <h2 class="text-3xl font-bold text-center mb-4 text-white">互動架構：即時通訊核心</h2>
+            <p class="text-center text-gray-400 max-w-2xl mx-auto mb-12">
+                為了實現即時轉播與排隊通知，我們建立了一條專屬的「資訊高速公路」。它讓雲端主機可以主動、即時地將最新消息推送給玩家和觀眾。
+            </p>
+            <div class="bg-[#2c2c54]/80 p-8 rounded-lg shadow-xl border border-gray-700/50 flex flex-col md:flex-row items-center justify-around space-y-8 md:space-y-0">
+                <div class="text-center">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <h3 class="text-xl font-bold">玩家</h3>
+                    <p class="text-gray-400">發送遊戲操作</p>
+                    <p class="text-gray-400">接收排隊與遊戲狀態</p>
+                </div>
+                <div class="flex flex-col items-center text-center">
+                    <div class="text-2xl text-[#f7b733] font-mono">即時資訊</div>
+                    <svg class="w-24 h-24 my-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                    <h3 class="text-xl font-bold">雲端伺服器</h3>
+                    <p class="text-gray-400">管理排隊順序</p>
+                    <p class="text-gray-400">處理遊戲結果</p>
+                    <p class="text-gray-400">廣播最新動態</p>
+                    <div class="text-2xl text-[#f7b733] font-mono">高速公路</div>
+                </div>
+                 <div class="text-center">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <h3 class="text-xl font-bold">莊家 / 觀眾</h3>
+                    <p class="text-gray-400">僅接收遊戲狀態</p>
+                    <p class="text-gray-400">（觀看即時轉播）</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 成果紀錄 -->
+        <section id="output" class="section-fade-in">
+            <h2 class="text-3xl font-bold text-center mb-4 text-white">成果紀錄：數據的旅程</h2>
+            <p class="text-center text-gray-400 max-w-2xl mx-auto mb-12">
+                在多人互動的架構下，遊戲會產生三種重要的成果紀錄，確保每個精彩時刻都被妥善保存。
+            </p>
+            <div class="space-y-8">
+                <div class="bg-[#2c2c54]/80 p-6 rounded-lg shadow-lg border border-gray-700/50 flex items-center gap-6">
+                    <svg class="w-16 h-16 text-[#3498db] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071a7.5 7.5 0 0110.607 0M5.394 8.536a10 10 0 0114.142 0M12 4v.01"></path></svg>
+                    <div>
+                        <h3 class="font-bold text-xl mb-2 text-[#3498db]">A. 即時賽況轉播</h3>
+                        <p class="text-gray-300">
+                           在遊戲進行中，伺服器會不斷發送即時的賽況更新，例如「玩家A的滾輪停在櫻桃、檸檬、BAR」。這讓所有觀眾的畫面都能與玩家同步，享受零時差的觀戰體驗。
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-[#2c2c54]/80 p-6 rounded-lg shadow-lg border border-gray-700/50 flex items-center gap-6">
+                     <svg class="w-16 h-16 text-[#fc4a1a] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                    <div>
+                        <h3 class="font-bold text-xl mb-2 text-[#fc4a1a]">B. 光榮榜永久紀錄</h3>
+                        <p class="text-gray-300">
+                            遊戲結束後，系統會將玩家的姓名、分數、中獎組合與遊玩時間等輝煌戰績，永久保存在雲端資料庫的「光榮榜」中。
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-[#2c2c54]/80 p-6 rounded-lg shadow-lg border border-gray-700/50 flex items-center gap-6">
+                    <svg class="w-16 h-16 text-[#f7b733] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <div>
+                        <h3 class="font-bold text-xl mb-2 text-[#f7b733]">C. 成果匯出存檔</h3>
+                        <p class="text-gray-300">
+                           莊家可以隨時將光榮榜的所有紀錄，匯出成一個類似 Excel 的 CSV 表格檔案。這方便您將輝煌戰果下載到自己的電腦中，進行分析或永久珍藏。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="text-center py-6 mt-12 border-t border-gray-700/50">
+        <p class="text-gray-500 text-sm">此互動式文件由 Gemini 生成</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 區塊淡入效果
+            const sections = document.querySelectorAll('.section-fade-in');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+            
+            // 導覽列狀態同步
+            const navLinks = document.querySelectorAll('.nav-link');
+            const navObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navLinks.forEach(link => {
+                           link.classList.remove('active');
+                           if(link.getAttribute('href') === `#${id}`){
+                               link.classList.add('active');
+                           }
+                        });
+                    }
+                });
+            }, { rootMargin: '-30% 0px -70% 0px'});
+            
+            document.querySelectorAll('main section').forEach(section => {
+                navObserver.observe(section);
+            });
+            
+            // 點擊導覽列平滑滾動
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
