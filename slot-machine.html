@@ -11,12 +11,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif; background-color: #F8F7F5; color: #4A4A4A; transition: background-color 0.5s ease, color 0.5s ease; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F8F7F5; color: #4A4A4A; transition: background-color 0.5s ease, color 0.5s ease; }
         .section-container { background-color: #FFFFFF; border-radius: 12px; padding: 2.5rem; margin-bottom: 2rem; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07); border: 1px solid #EAEAEA; transition: all 0.5s ease; }
-        h2 { font-family: 'Noto Sans JP', sans-serif; font-weight: 500; font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #EAEAEA; color: #333; transition: color 0.5s ease, border-color 0.5s ease; }
-        h3 { font-family: 'Noto Sans JP', sans-serif; font-weight: 500; font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #EAEAEA; color: #333; }
+        h2 { font-family: 'Noto Sans TC', sans-serif; font-weight: 500; font-size: 1.75rem; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #EAEAEA; color: #333; transition: color 0.5s ease, border-color 0.5s ease; }
+        h3 { font-family: 'Noto Sans TC', sans-serif; font-weight: 500; font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #EAEAEA; color: #333; }
         .btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn-primary { background-color: #8D7B68; color: white; }
         .btn-primary:hover { background-color: #A4907C; transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0,0,0,0.1); }
@@ -53,11 +53,11 @@
         .list-item > div, #winners-table > div { padding: 1rem; border-bottom: 1px solid #F3F4F6; }
         .list-item > div:last-child, #winners-table > div:last-child { border-bottom: none; }
         .theme-btn.active { background-color: #8D7B68; color: white; box-shadow: 0 6px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
-        .theme-rog body { font-family: 'Orbitron', 'Noto Sans JP', sans-serif; background-color: #121212; color: #E0E0E0; }
+        body.theme-rog { font-family: 'Noto Sans TC', sans-serif; background-color: #121212; color: #E0E0E0; }
         .theme-rog .section-container { background-color: rgba(26, 26, 30, 0.85); border: 1px solid #ff003c; box-shadow: 0 0 15px rgba(255, 0, 60, 0.3), inset 0 0 10px rgba(255, 0, 60, 0.2); }
         .theme-rog header h1, .theme-rog .modal-content h3 { color: #FFF; text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 15px #ff003c; }
         .theme-rog h2, .theme-rog h3, .theme-rog #room-info h4 {color: #ff003c;border-bottom-color: #ff003c;}
-        .theme-rog #prize-management h3 { font-family: 'Noto Sans JP', sans-serif; text-transform: none; letter-spacing: normal; }
+        .theme-rog #prize-management h3 { font-family: 'Noto Sans TC', sans-serif; text-transform: none; letter-spacing: normal; }
         .theme-rog .btn-primary { background: linear-gradient(45deg, #e60032, #ff4c6b); }
         .theme-rog .btn-primary:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); }
         .theme-rog .input-field { background-color: #1a1a1a; border: 1px solid #555; color: #E0E0E0; }
@@ -79,7 +79,11 @@
         .theme-rog #room-info h4 { color: #ff4c6b; text-shadow: none; }
         .theme-rog #winners-table-container > div:first-child > div { color: #B0B0B0; text-shadow: none; }
         .theme-rog #queue-list li { color: #f5f5f5; }
-        #winners-table > div { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+        #winners-table > div { box-sizing: border-box; height: 2.4rem; padding-top: 0.3rem; padding-bottom: 0.3rem; }
+        #queue-list { max-height: 7.5rem; overflow-y: auto; }
+        #queue-list li { height: 1.5rem; }
+        #room-info { padding: 1.5rem; gap: 1.25rem; }
+        #youtube-player { position: fixed; top: -9999px; left: -9999px; width: 200px; height: 200px; opacity: 0; pointer-events: none; }
         
         /* 新增：當前玩家狀態指示 */
         .current-player-indicator { 
@@ -113,7 +117,7 @@
 <body class="p-4 sm:p-8">
 
     <div class="max-w-5xl mx-auto">
-<header class="text-center mb-10">
+       <header class="text-center mb-10">
             <h1 class="text-4xl font-bold text-[#333]">分享AI🤩玩拉霸</h1>
             <div class="relative inline-flex items-center justify-center">
                 <p class="text-lg mt-2 text-gray-500">China Motor Company . 生管部</p>
@@ -131,7 +135,7 @@
             </div>
             <div id="youtube-player-controls" class="absolute right-0 flex items-center gap-2">
                 <button id="toggle-music-btn" class="btn btn-secondary text-sm">🔇 開啟背景音樂</button>
-                <div id="youtube-player" class="w-0 h-0 overflow-hidden"></div>
+                <div id="youtube-player" aria-hidden="true"></div>
             </div>
         </div>
         <div id="prize-management" class="section-container">
@@ -156,24 +160,23 @@
             </div>
             <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
             
-           <div id="room-info" class="section-container flex flex-col md:flex-row gap-8 items-start">
+           <div id="game-layout" class="flex flex-col gap-8 lg:flex-row lg:items-start">
+           <div id="room-info" class="section-container mb-0 flex flex-col gap-8 items-stretch lg:w-2/5">
 
-            <div id="dealer-share-info" class="w-full md:w-1/4 text-center border-r border-gray-200 theme-rog:border-gray-600 pr-4">
-               <h4 class="font-bold text-center text-lg mb-2">房間資訊</h4>
-               <p id="room-id-display" class="font-bold text-lg mb-2 text-blue-600 theme-rog:text-blue-400">載入中...</p>
-               <p class="text-sm mb-2">分享此連結邀請朋友加入:</p>
-               <input type="text" id="room-url-input" readonly class="input-field w-full text-center mb-2">
+            <div id="dealer-share-info" class="w-full text-center border-b border-gray-200 theme-rog:border-gray-600 pb-4">
+               <h4 class="font-bold text-center text-lg mb-2">刷讀QR Code排隊加入</h4>
                <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
                  <span class="text-xs">QR Code 生成中</span>
                </div>
+               <input type="text" id="room-url-input" readonly class="input-field w-full text-center text-xs mt-3">
              </div>
 
-            <div class="w-full md:w-1/4 border-r border-gray-200 theme-rog:border-gray-600 pr-4">
+            <div class="w-full border-b border-gray-200 theme-rog:border-gray-600 pb-4">
                <h4 class="font-bold text-center text-lg mb-2">排隊列表</h4>
                <ol id="queue-list" class="list-decimal list-inside text-center"></ol>
           </div>
     
-    <div id="winners-section" class="w-full md:w-2/4">
+    <div id="winners-section" class="w-full">
         <h4 class="font-bold text-center text-lg mb-2">光榮榜</h4>
         <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-4 theme-rog:bg-transparent">
             <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 theme-rog:bg-black/25 text-sm">
@@ -188,7 +191,7 @@
 
 </div>
             
-            <div id="slot-machine-wrapper">
+            <div id="slot-machine-wrapper" class="lg:w-3/5 lg:sticky lg:top-4">
                 <div class="slot-machine">
                     <!-- 新增：當前玩家指示器 -->
                     <div id="current-player-indicator" class="current-player-indicator" style="display: none;"></div>
@@ -206,6 +209,7 @@
                     <div id="lever-left" class="lever"><div class="lever-arm"><div class="lever-ball"></div></div></div>
                     <div id="lever-right" class="lever"><div class="lever-arm"><div class="lever-ball"></div></div></div>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -295,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('qrcode').innerHTML = '';
             roomUrlInput.value = window.location.href;
             new QRCode(document.getElementById('qrcode'), window.location.href);
-            document.getElementById('room-id-display').textContent = `房間號碼: ${roomId}`;
         });
 
         socket.on('updateRoomState', (roomState) => {
@@ -732,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function renderWinners() {
         winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
-        winners.forEach(winner => {
+        [...winners].reverse().forEach(winner => {
             const row = document.createElement('div');
             row.className = 'grid grid-cols-8 items-center';
             row.innerHTML = `<div class="col-span-2">${winner.name}</div><div class="col-span-5">${winner.prize}</div><div class="text-center col-span-1">${winner.quantity}</div>`;
@@ -754,7 +757,27 @@ document.addEventListener('DOMContentLoaded', () => {
         itemModal.classList.remove('hidden');
     }
     let player;
-    window.onYouTubeIframeAPIReady = function() { player = new YT.Player('youtube-player', { height: '0', width: '0', playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', index: 4, loop: 1 }, events: { 'onReady': (event) => { event.target.setVolume(50); } } }); };
+    let isMusicPlaying = false;
+    let isMusicPlayerReady = false;
+    const setMusicButton = (isPlaying) => {
+        isMusicPlaying = isPlaying;
+        document.getElementById('toggle-music-btn').textContent = isPlaying ? '🔊 關閉背景音樂' : '🔇 開啟背景音樂';
+    };
+    window.onYouTubeIframeAPIReady = function() {
+        player = new YT.Player('youtube-player', {
+            height: '200',
+            width: '200',
+            videoId: 'P4YzQmd9tZo',
+            playerVars: { listType: 'playlist', list: 'PLbYHhP_Esm05t_qgCEeI9K3-8WECKWxDD', loop: 1, playsinline: 1 },
+            events: {
+                onReady: (event) => { isMusicPlayerReady = true; event.target.setVolume(50); setMusicButton(false); },
+                onStateChange: (event) => {
+                    if (event.data === YT.PlayerState.PLAYING) setMusicButton(true);
+                    if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) setMusicButton(false);
+                }
+            }
+        });
+    };
     function applyTheme(theme) { document.body.classList.toggle('theme-rog', theme === 'rog'); themeButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.theme === theme); }); localStorage.setItem('lotteryTheme', theme); }
     function loadTheme() { const savedTheme = localStorage.getItem('lotteryTheme') || 'default'; applyTheme(savedTheme); }
 
@@ -817,10 +840,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('theme-btn')) { applyTheme(e.target.dataset.theme); }
     });
     document.getElementById('toggle-music-btn').addEventListener('click', () => {
-        if (!player || !player.getPlayerState) return;
-        const btn = document.getElementById('toggle-music-btn');
-        if (player.getPlayerState() === 1) { player.pauseVideo(); btn.textContent = '🔇 開啟背景音樂'; } 
-        else { player.playVideo(); btn.textContent = '🔊 關閉背景音樂'; }
+        if (!player || !isMusicPlayerReady) {
+            document.getElementById('toggle-music-btn').textContent = '音樂載入中...';
+            return;
+        }
+        if (isMusicPlaying) { player.pauseVideo(); setMusicButton(false); }
+        else { player.playVideo(); setMusicButton(true); }
     });
 
     // --- 5. 程式啟動區 ---
