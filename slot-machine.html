@@ -27,7 +27,7 @@
         .input-field { border: 1px solid #D1D5DB; border-radius: 8px; padding: 0.6rem 1rem; transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease; width: 100%; }
         .input-field:focus { outline: none; border-color: #8D7B68; box-shadow: 0 0 0 3px rgba(141, 123, 104, 0.2); }
         #slot-machine-wrapper { display: flex; justify-content: center; align-items: center; padding-bottom: 2rem; perspective: 1000px; }
-        .slot-machine { position: relative; width: min(600px, 100%); aspect-ratio: 1; height: auto; background-image: url('slot-machine.png'); background-size: contain; background-repeat: no-repeat; background-position: center; }
+        .slot-machine { position: relative; width: min(600px, 100%); aspect-ratio: 1; height: auto; background-image: url('slot-machine.png'); background-size: contain; background-repeat: no-repeat; background-position: center; container-type: inline-size; }
         .slot-window-wrapper { position: absolute; top: 26.9%; left: 19.4%; width: 60%; height: 26.2%; display: flex; justify-content: center; align-items: center; }
         .slot-window { width: 100%; height: 100%; background-color: rgba(248, 247, 245, 0.9); border-radius: 5px; overflow: hidden; position: relative; border: 3px solid #333; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); display: flex; container-type: inline-size; }
         .slot-window::before, .slot-window::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 20%; z-index: 2; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent); }
@@ -38,11 +38,11 @@
         .slot-reel { position: absolute; top: 0; left: 0; width: 100%; }
         .reel-item { box-sizing: border-box; width: 100%; height: 21.833333cqw; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; font-size: clamp(0.875rem, 6.67cqw, 1.5rem); line-height: 1.2; font-weight: bold; border-bottom: 2px dashed rgba(0,0,0,0.2); color: #333; padding: 0 clamp(6px, 5.56cqw, 20px); }
         .quantity-item { font-size: clamp(1.5rem, 11.11cqw, 2.5rem); justify-content: center; }
-        .lever { position: absolute; top: 34%; width: clamp(44px, 13.33vw, 80px); height: clamp(69px, 20.83vw, 125px); cursor: pointer; transform-origin: 50% 100%; transform-style: preserve-3d; }
+        .lever { position: absolute; top: 34%; width: clamp(44px, 13.33cqw, 80px); height: clamp(69px, 20.83cqw, 125px); cursor: pointer; transform-origin: 50% 100%; transform-style: preserve-3d; }
         #lever-right { right: 9%; }
         #lever-left { left: 8%; }
-        .lever-arm { width: clamp(7px, 2vw, 12px); height: clamp(55px, 16.67vw, 100px); background: linear-gradient(to right, #ccc, #777); border-radius: 10px; position: absolute; bottom: 0; left: 42.5%; transform-origin: bottom center; transition: transform 0.4s ease-in-out; transform-style: preserve-3d; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); }
-        .lever-ball { width: clamp(18px, 5vw, 30px); height: clamp(18px, 5vw, 30px); background: radial-gradient(circle at 10px 10px, #FF6B6B, #C41E3A); border-radius: 50%; position: absolute; top: clamp(-15px, -2.5vw, -9px); left: 50%; transform: translateX(-50%); box-shadow: inset 3px 3px 5px rgba(255,255,255,0.4), inset -3px -3px 5px rgba(0,0,0,0.4); transition: transform 0.4s ease-in-out; }
+        .lever-arm { width: clamp(7px, 2cqw, 12px); height: clamp(55px, 16.67cqw, 100px); background: linear-gradient(to right, #ccc, #777); border-radius: 10px; position: absolute; bottom: 0; left: 42.5%; transform-origin: bottom center; transition: transform 0.4s ease-in-out; transform-style: preserve-3d; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); }
+        .lever-ball { width: clamp(18px, 5cqw, 30px); height: clamp(18px, 5cqw, 30px); background: radial-gradient(circle at 10px 10px, #FF6B6B, #C41E3A); border-radius: 50%; position: absolute; top: -2.5cqw; left: 50%; transform: translateX(-50%); box-shadow: inset 3px 3px 5px rgba(255,255,255,0.4), inset -3px -3px 5px rgba(0,0,0,0.4); transition: transform 0.4s ease-in-out; }
         .lever.pulled .lever-arm { transform: rotateX(-60deg); }
         .lever.pulled .lever-ball { transform: translateX(-50%) rotateX(60deg) scale(1.25); }
         @keyframes red-flash { 0%, 100% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0), 0 0 10px rgba(255,0,0,0); } 50% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0.7), 0 0 40px 10px rgba(255,0,0,0.7); } }
