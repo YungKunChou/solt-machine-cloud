@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
+const settingsRules = require('./settings-rules.js');
 
 const app = express();
 app.use(cors());
@@ -24,6 +25,7 @@ app.post('/create-room', (req, res) => {
         players: {},
         queue: [],
         winners: [],
+        settingsRevision: 0,
         currentTurnData: { prize: null, quantity: null, playerName: null },
         prizes: [ 
             { name: '大杯美式咖啡' }, 
@@ -99,21 +101,44 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('updatePrizes', ({ roomId, prizes }) => {
-        const room = gameRooms[roomId];
-        if (room && room.dealerId === socket.id) {
-            room.prizes = prizes;
-            broadcastRoomState(roomId);
+    function saveSettings(payload, ack, legacyType = null) {
+        const reply = typeof ack === 'function' ? ack : result => {
+            if (!result.success) socket.emit('error', result.message);
+        };
+        const room = payload && gameRooms[payload.roomId];
+        if (!room || room.dealerId !== socket.id) {
+            reply({ success: false, message: '只有此房間的主持人可以修改設定。' });
+            return;
         }
-    });
-
-    socket.on('updateQuantities', ({ roomId, quantities }) => {
-        const room = gameRooms[roomId];
-        if (room && room.dealerId === socket.id) {
-            room.quantities = quantities;
-            broadcastRoomState(roomId);
+        if (room.currentTurnData.playerName) {
+            reply({ success: false, message: '玩家正在抽獎，請待本輪結束後儲存。' });
+            return;
         }
-    });
+        if (!legacyType && payload.baseRevision !== room.settingsRevision) {
+            reply({ success: false, message: '設定已更新，請取消編輯後重新載入最新設定。' });
+            return;
+        }
+        const checked = settingsRules.validate(
+            legacyType === 'quantities' ? room.prizes : payload.prizes,
+            legacyType === 'prizes' ? room.quantities : payload.quantities
+        );
+        if (!checked.valid) {
+            reply({ success: false, message: checked.errors[0].message, errors: checked.errors });
+            return;
+        }
+        // Validate both collections before changing either one.
+        room.prizes = checked.prizes;
+        room.quantities = checked.quantities;
+        room.settingsRevision += 1;
+        broadcastRoomState(payload.roomId);
+        reply({ success: true, settings: {
+            prizes: room.prizes, quantities: room.quantities, settingsRevision: room.settingsRevision
+        } });
+    }
+    socket.on('updateSettings', (payload, ack) => saveSettings(payload, ack));
+    // Retain compatibility with existing pages during a staged deployment.
+    socket.on('updatePrizes', (payload, ack) => saveSettings(payload, ack, 'prizes'));
+    socket.on('updateQuantities', (payload, ack) => saveSettings(payload, ack, 'quantities'));
 
     socket.on('spin', ({ roomId, type, playerName }) => {
         const room = gameRooms[roomId];
@@ -148,6 +173,7 @@ io.on('connection', (socket) => {
             
             console.log(`${playerName} 抽到 ${type}: ${result}`);
             socket.emit('spinResult', { type, result });
+            broadcastRoomState(roomId);
         }
     });
 
@@ -180,6 +206,10 @@ io.on('connection', (socket) => {
         for (const currentRoomId in gameRooms) {
             const room = gameRooms[currentRoomId];
             if (room.players[socket.id]) {
+                // An abandoned round must not keep settings locked for the next player.
+                if (room.queue[0] === socket.id) {
+                    room.currentTurnData = { prize: null, quantity: null, playerName: null };
+                }
                 if (room.dealerId === socket.id) {
                     console.log(`房間 ${currentRoomId} 的莊家已離線。`);
                 }

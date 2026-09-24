@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node scripts/dev.cjs",
+    "test": "node --test tests/settings.test.cjs"
   },
   "keywords": [],
   "author": "",

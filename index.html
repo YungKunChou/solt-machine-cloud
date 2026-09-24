@@ -107,10 +107,11 @@
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script>
         const createBtn = document.getElementById('create-room-btn');
         // ↓↓↓ 請務必再次確認這是您部署後的後端伺服器網址 ↓↓↓
-        const backendUrl = 'https://solt-machine.onrender.com';
+        const backendUrl = window.LOTTERY_CONFIG.backendUrl;
 
         createBtn.addEventListener('click', () => {
             createBtn.disabled = true;

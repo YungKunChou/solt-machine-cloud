@@ -1,0 +1,17 @@
+node_modules/
+.local-setup/
+.env
+.env.*
+!.env.example
+*.log
+
+# Original local reference files; the root files are the active application.
+/後台/
+/備份/
+/updated_backend_js.js
+/流程圖.html
+/雲端拉霸說明書.html
+/雲端拉霸機故事書.pdf
+/雲端拉霸機流程圖.pdf
+/新增 文字文件.txt
+/請Gemini反思重來一次該如何下咒語.txt

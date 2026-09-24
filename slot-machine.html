@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雲端拉霸</title>
 
+    <script src="config.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
@@ -53,40 +54,23 @@
         .list-item > div:last-child, #winners-table > div:last-child { border-bottom: none; }
         .quantity-list-item { position: relative; justify-content: flex-end; }
         .quantity-list-value { position: absolute; left: 50%; transform: translateX(-50%); }
-        .theme-btn.active { background-color: #8D7B68; color: white; box-shadow: 0 6px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
-        body.theme-rog { font-family: 'Noto Sans TC', sans-serif; background-color: #121212; color: #E0E0E0; }
-        .theme-rog .section-container { background-color: rgba(26, 26, 30, 0.85); border: 1px solid #ff003c; box-shadow: 0 0 15px rgba(255, 0, 60, 0.3), inset 0 0 10px rgba(255, 0, 60, 0.2); }
-        .theme-rog header h1, .theme-rog .modal-content h3 { color: #FFF; text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 15px #ff003c; }
-        .theme-rog h2, .theme-rog h3, .theme-rog #room-info h4 {color: #ff003c;border-bottom-color: #ff003c;}
-        .theme-rog #prize-management h3 { font-family: 'Noto Sans TC', sans-serif; text-transform: none; letter-spacing: normal; }
-        .theme-rog .btn-primary { background: linear-gradient(45deg, #e60032, #ff4c6b); }
-        .theme-rog .btn-primary:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); }
-        .theme-rog .input-field { background-color: #1a1a1a; border: 1px solid #555; color: #E0E0E0; }
-        .theme-rog .input-field:focus { border-color: #ff003c; box-shadow: 0 0 0 3px rgba(255, 0, 60, 0.4); }
-        .theme-rog .slot-window { background-color: rgba(10, 10, 10, 0.9); }
-        .theme-rog #prize-reel-container { border-right-color: rgba(255,0,60,0.4); }
-        .theme-rog .reel-item { color: #E0E0E0; border-bottom-color: rgba(255,0,60,0.4); }
-        .theme-rog .list-item span { color: #E0E0E0; }
-        .theme-rog .slot-window::before { background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .theme-rog .slot-window::after { background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
-        .theme-rog .modal-content { background-color: #2a2a2a; border: 1px solid #ff003c; }
-        .theme-rog #winners-table-container, .theme-rog #prize-management .grid > div { background-color: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; }
-        .theme-rog #winners-table-container { padding: 0; }
-        .theme-rog .list-item > div, .theme-rog #winners-table > div { border-bottom-color: #333; color: #f5f5f5; }
-        .theme-rog #winners-table-container > div:first-child { background-color: #111; padding: 1rem; }
-        .theme-rog .theme-btn.active { background: linear-gradient(45deg, #e60032, #ff4c6b); border: 1px solid #ff4c6b; color: white; }
-        .theme-rog .btn-danger { background: linear-gradient(45deg, #e60032, #ff4c6b); color: white; border: 1px solid #ff4c6b; }
-        .theme-rog .btn-danger:hover { background: linear-gradient(45deg, #ff4c6b, #e60032); box-shadow: 0 4px 8px rgba(0,0,0,0.6), 0 0 10px #ff4c6b; }
-        .theme-rog #room-info h4 { color: #ff4c6b; text-shadow: none; }
-        .theme-rog #winners-table-container > div:first-child > div { color: #B0B0B0; text-shadow: none; }
-        .theme-rog #queue-list li { color: #f5f5f5; }
         #winners-table > div { box-sizing: border-box; height: 2.4rem; padding-top: 0.3rem; padding-bottom: 0.3rem; }
         #queue-list { max-height: 7.5rem; overflow-y: auto; }
         #queue-list li { height: 1.5rem; }
         #room-info { padding: 1.5rem; gap: 1.25rem; }
         #youtube-player { position: fixed; top: -9999px; left: -9999px; width: 200px; height: 200px; opacity: 0; pointer-events: none; }
+        .page-title-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; }
+        .page-title-row h1 { grid-column: 2; white-space: nowrap; }
+        #youtube-player-controls { grid-column: 3; justify-self: end; }
+        #toggle-music-btn { white-space: nowrap; }
         @media (min-width: 1024px) {
             #slot-machine-wrapper { margin-top: -3rem; }
+        }
+        @media (max-width: 640px) {
+            .page-title-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+            .page-title-row h1 { grid-column: 1; font-size: clamp(18px, 5.5vw, 28px); }
+            #youtube-player-controls { grid-column: 2; }
+            #toggle-music-btn { font-size: 12px; padding: 8px; }
         }
         
         /* 新增：當前玩家狀態指示 */
@@ -117,12 +101,21 @@
             pointer-events: none; 
         }
     </style>
+    <link rel="stylesheet" href="settings.css">
+    <script src="settings-rules.js"></script>
+    <script src="settings-editor.js"></script>
 </head>
 <body class="p-4 sm:p-8">
 
     <div class="max-w-5xl mx-auto">
        <header class="text-center mb-10">
-            <h1 class="text-4xl font-bold text-[#333]">分享AI🤩玩拉霸</h1>
+            <div class="page-title-row">
+                <h1 class="text-4xl font-bold text-[#333]">分享AI🤩玩拉霸</h1>
+                <div id="youtube-player-controls" class="flex items-center gap-2">
+                    <button id="toggle-music-btn" class="btn btn-secondary text-sm">🔇 開啟背景音樂</button>
+                    <div id="youtube-player" aria-hidden="true"></div>
+                </div>
+            </div>
             <div class="relative inline-flex items-center justify-center">
                 <p class="text-lg mt-2 text-gray-500">China Motor Company . 生管部</p>
                 <a href="https://yungkunchou.github.io/solt-machine-cloud/manual.html" target="_blank" rel="noopener noreferrer" class="absolute left-full ml-2 top-1/2 -translate-y-1/2 mt-1 text-gray-400 hover:text-gray-600 transition-colors" aria-label="使用者說明">
@@ -132,31 +125,7 @@
                 </a>
             </div>
             </header>
-        <div class="relative flex justify-center items-center mb-8">
-            <div id="theme-switcher" class="flex justify-center gap-4">
-                <button data-theme="default" class="btn btn-secondary theme-btn">中川政七風格</button>
-                <button data-theme="rog" class="btn btn-secondary theme-btn">ASUS ROG 風格</button>
-            </div>
-            <div id="youtube-player-controls" class="absolute right-0 flex items-center gap-2">
-                <button id="toggle-music-btn" class="btn btn-secondary text-sm">🔇 開啟背景音樂</button>
-                <div id="youtube-player" aria-hidden="true"></div>
-            </div>
-        </div>
-        <div id="prize-management" class="section-container">
-            <h2>獎項與數量設定</h2>
-            <div class="grid md:grid-cols-2 gap-8">
-                <div>
-                    <h3>獎項項目</h3>
-                    <div id="prize-list" class="list-item mb-4"></div>
-                    <button id="add-prize-btn" class="btn btn-primary">＋ 新增獎項</button>
-                </div>
-                <div>
-                    <h3>數量選項</h3>
-                    <div id="quantity-list" class="list-item mb-4"></div>
-                    <button id="add-quantity-btn" class="btn btn-primary">＋ 新增數量</button>
-                </div>
-            </div>
-        </div>
+        <div id="prize-management" class="section-container" style="display:none"></div>
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
@@ -167,7 +136,7 @@
            <div id="game-layout" class="flex flex-col gap-8 lg:flex-row lg:items-start">
            <div id="room-info" class="section-container mb-0 flex flex-col gap-8 items-stretch lg:w-2/5">
 
-            <div id="dealer-share-info" class="w-full text-center border-b border-gray-200 theme-rog:border-gray-600 pb-4">
+            <div id="dealer-share-info" class="w-full text-center border-b border-gray-200 pb-4">
                <h4 class="font-bold text-center text-lg mb-2">刷讀QR Code排隊加入</h4>
                <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
                  <span class="text-xs">QR Code 生成中</span>
@@ -175,15 +144,15 @@
                <input type="text" id="room-url-input" readonly class="input-field w-full text-center text-xs mt-3">
              </div>
 
-            <div class="w-full border-b border-gray-200 theme-rog:border-gray-600 pb-4">
+            <div class="w-full border-b border-gray-200 pb-4">
                <h4 class="font-bold text-center text-lg mb-2">排隊列表</h4>
                <ol id="queue-list" class="list-decimal list-inside text-center"></ol>
           </div>
     
     <div id="winners-section" class="w-full">
         <h4 class="font-bold text-center text-lg mb-2">光榮榜</h4>
-        <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-4 theme-rog:bg-transparent">
-            <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 theme-rog:bg-black/25 text-sm">
+        <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-4">
+            <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 text-sm">
               <div class="col-span-2 whitespace-nowrap">得獎人</div>
               <div class="col-span-5 whitespace-nowrap">抽中獎項</div>
               <div class="text-center col-span-1 whitespace-nowrap">數量</div>
@@ -217,22 +186,6 @@
             </div>
         </div>
     </div>
-    <div id="item-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h3 id="modal-title" class="text-2xl font-bold mb-6">新增</h3>
-            <form id="item-form">
-                <input type="hidden" id="modal-item-type"><input type="hidden" id="modal-item-index">
-                <div class="mb-4">
-                    <label for="item-name" class="block mb-2 font-medium">名稱/數值</label>
-                    <input type="text" id="item-name" class="input-field" required>
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="cancel-modal-btn" class="btn btn-secondary">取消</button>
-                    <button type="submit" class="btn btn-primary">儲存</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -255,17 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // --- 2. DOM 元件定義區 (來自您的原始碼，完整無缺) ---
-    const prizeList = document.getElementById('prize-list');
-    const quantityList = document.getElementById('quantity-list');
-    const addPrizeBtn = document.getElementById('add-prize-btn');
-    const addQuantityBtn = document.getElementById('add-quantity-btn');
-    const itemModal = document.getElementById('item-modal');
-    const cancelModalBtn = document.getElementById('cancel-modal-btn');
-    const itemForm = document.getElementById('item-form');
-    const modalTitle = document.getElementById('modal-title');
-    const modalItemType = document.getElementById('modal-item-type');
-    const modalItemIndex = document.getElementById('modal-item-index');
-    const modalItemName = document.getElementById('item-name');
     const participantNameInput = document.getElementById('participant-name');
     const drawStatus = document.getElementById('draw-status');
     const leverLeft = document.getElementById('lever-left');
@@ -275,18 +217,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const slotWindow = document.getElementById('slot-window');
     const winnersTable = document.getElementById('winners-table');
     const exportCsvBtn = document.getElementById('export-csv-btn');
-    const themeSwitcher = document.getElementById('theme-switcher');
-    const themeButtons = document.querySelectorAll('.theme-btn');
     const roomUrlInput = document.getElementById('room-url-input');
     const prizeManagementSection = document.getElementById('prize-management');
     const winnersSection = document.getElementById('winners-section');
     const dealerShareInfo = document.getElementById('dealer-share-info');
     const currentPlayerIndicator = document.getElementById('current-player-indicator');
+    const settingsEditor = window.createLotterySettingsEditor(prizeManagementSection, payload => new Promise((resolve, reject) => {
+        if (!socket?.connected) { reject(new Error('連線已中斷，草稿仍保留，請重新連線後再試。')); return; }
+        socket.timeout(6000).emit('updateSettings', { roomId, ...payload }, (error, result) => {
+            if (error) reject(new Error('未收到儲存確認，草稿仍保留。請確認連線與後端版本後再試。'));
+            else if (!result?.success) reject(new Error(result?.message || '儲存失敗，草稿仍保留。'));
+            else resolve(result);
+        });
+    }));
 
     // --- 3. 函式定義區 ---
 
     function initializeMultiplayer() {
-        const backendUrl = 'https://solt-machine.onrender.com'; 
+        const backendUrl = window.LOTTERY_CONFIG.backendUrl;
         socket = io(backendUrl);
         const urlParams = new URLSearchParams(window.location.search);
         roomId = urlParams.get('room');
@@ -305,13 +253,18 @@ document.addEventListener('DOMContentLoaded', () => {
             new QRCode(document.getElementById('qrcode'), window.location.href);
         });
 
+        socket.on('disconnect', () => settingsEditor.disconnect());
+        socket.on('connect_error', () => settingsEditor.disconnect());
         socket.on('updateRoomState', (roomState) => {
+            const turnChanged = currentTurnPlayerId !== roomState.queue[0];
+            const settingsChanged = JSON.stringify(prizes) !== JSON.stringify(roomState.prizes) || JSON.stringify(quantities) !== JSON.stringify(roomState.quantities);
             console.log("收到房間狀態更新:", roomState);
             prizes = roomState.prizes;
             quantities = roomState.quantities;
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
+            settingsEditor.update(roomState, amIDealer);
 
             prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
             dealerShareInfo.style.display = amIDealer ? 'block' : 'none';
@@ -335,13 +288,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             participantNameInput.disabled = amIDealer;
             if (amIDealer) {
-                drawStatus.textContent = "您是莊家，負責主持活動";
+                drawStatus.textContent = "這是莊家頁面，邀請玩家刷QR Code加入遊戲";
                 participantNameInput.placeholder = "您是莊家，不參加抽獎";
             } else if (currentTurnPlayerId === myPlayerId) {
                 drawStatus.textContent = currentParticipantName ? `你好, ${currentParticipantName}！請拉動拉桿！` : "輪到你了！請先輸入姓名！";
                 participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
-                reelStates.prize.hasBeenSpun = false;
-                reelStates.quantity.hasBeenSpun = false;
+                if (turnChanged) {
+                    reelStates.prize.hasBeenSpun = false;
+                    reelStates.quantity.hasBeenSpun = false;
+                }
             } else {
                 const currentPlayerInQueue = roomState.players[currentTurnPlayerId];
                 const currentPlayerName = currentPlayerInQueue?.name || '下一位玩家';
@@ -360,12 +315,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 isInitialRender = false; // 將旗標設為 false，之後就不會再進來了
              } else if (isShowingAnyResult) {
                console.log('⚠️ 跳過房間狀態更新的滾輪渲染 - 正在顯示獲獎結果');
-               renderPrizes();
-               renderQuantities();
                renderWinners();
              } else {
                console.log('🔄 執行後續的狀態更新渲染 (不包含滾輪)');
-               renderAll({ reRenderReels: false }); // 後續更新，不重繪滾輪，避免畫面跳動
+               renderAll({ reRenderReels: settingsChanged && !isAnySpinning }); // 後續更新，不重繪滾輪，避免畫面跳動
              }
         });
 
@@ -592,9 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
             newItem.dataset.name = wonResult;
             
             if (type === 'prize') {
-                newItem.innerHTML = `<span>${wonResult}</span>`;
+                newItem.textContent = wonResult;
             } else {
-                newItem.innerHTML = wonResult;
+                newItem.textContent = wonResult;
             }
             
             const insertPosition = currentItemIndex + 8;
@@ -695,8 +648,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAll(options = {}) {
         const { reRenderReels = true } = options;
-        renderPrizes();
-        renderQuantities();
         if (reRenderReels) {
             renderPrizeReel();
             renderQuantityReel();
@@ -704,26 +655,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWinners();
     }
 
-    function renderList(list, listEl, type) {
-        listEl.innerHTML = list.length ? '' : `<p class="text-gray-500 text-sm">尚未設定任何${type === 'prize' ? '獎項' : '數量'}。</p>`;
-        list.forEach((item, index) => {
-            const itemEl = document.createElement('div');
-            const isQuantity = type === 'quantity';
-            itemEl.className = isQuantity ? 'quantity-list-item flex items-center' : 'flex justify-between items-center';
-            const itemValueClass = isQuantity ? 'quantity-list-value' : '';
-            itemEl.innerHTML = `<span class="font-semibold text-lg ${itemValueClass}">${item.name}</span><div class="flex gap-2"><button class="btn btn-secondary btn-sm edit-btn" data-type="${type}" data-index="${index}">編輯</button><button class="btn btn-danger btn-sm delete-btn" data-type="${type}" data-index="${index}">刪除</button></div>`;
-            listEl.appendChild(itemEl);
-        });
-    }
-    const renderPrizes = () => renderList(prizes, prizeList, 'prize');
-    const renderQuantities = () => renderList(quantities, quantityList, 'quantity');
+    const escapeHTML = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     function renderPrizeReel() {
         if (reelStates.prize.isSpinning || reelStates.prize.isStopping) return;
         if (prizes.length === 0) { prizeReel.innerHTML = `<div class="reel-item" style="height: 100%; color: red; justify-content: center;">請先設定獎項</div>`; return; }
         const shuffledPrizes = [...prizes].sort(() => Math.random() - 0.5);
         const repeatCount = Math.max(10, Math.ceil(80 / prizes.length));
         const displayItems = Array(repeatCount).fill(shuffledPrizes).flat();
-        prizeReel.innerHTML = displayItems.map(prize => `<div class="reel-item" data-name="${prize.name}"><span>${prize.name}</span></div>`).join('');
+        prizeReel.innerHTML = displayItems.map(prize => `<div class="reel-item" data-name="${escapeHTML(prize.name)}"><span>${escapeHTML(prize.name)}</span></div>`).join('');
     }
     function renderQuantityReel() {
         if (reelStates.quantity.isSpinning || reelStates.quantity.isStopping) return;
@@ -731,30 +670,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const shuffledQuantities = [...quantities].sort(() => Math.random() - 0.5);
         const repeatCount = Math.max(10, Math.ceil(80 / quantities.length));
         const displayItems = Array(repeatCount).fill(shuffledQuantities).flat();
-        quantityReel.innerHTML = displayItems.map(q => `<div class="reel-item quantity-item" data-name="${q.name}">${q.name}</div>`).join('');
+        quantityReel.innerHTML = displayItems.map(q => `<div class="reel-item quantity-item" data-name="${escapeHTML(q.name)}">${escapeHTML(q.name)}</div>`).join('');
     }
     function renderWinners() {
         winnersTable.innerHTML = winners.length ? '' : '<div class="text-center text-gray-500 p-4 col-span-3">目前尚無得獎者。</div>';
         [...winners].reverse().forEach(winner => {
             const row = document.createElement('div');
             row.className = 'grid grid-cols-8 items-center';
-            row.innerHTML = `<div class="col-span-2">${winner.name}</div><div class="col-span-5">${winner.prize}</div><div class="text-center col-span-1">${winner.quantity}</div>`;
+            row.innerHTML = `<div class="col-span-2">${escapeHTML(winner.name)}</div><div class="col-span-5">${escapeHTML(winner.prize)}</div><div class="text-center col-span-1">${escapeHTML(winner.quantity)}</div>`;
             winnersTable.appendChild(row);
         });
-    }
-    function openItemModal(type, index = null) {
-        itemForm.reset();
-        const list = type === 'prize' ? prizes : quantities;
-        modalTitle.textContent = `${index !== null ? '編輯' : '新增'}${type === 'prize' ? '獎項' : '數量'}`;
-        modalItemType.value = type;
-        if (index !== null) {
-            modalItemIndex.value = index;
-            modalItemName.value = list[index].name;
-        } else {
-            modalItemIndex.value = '';
-        }
-        modalItemName.type = type === 'quantity' ? 'number' : 'text';
-        itemModal.classList.remove('hidden');
     }
     let player;
     let isMusicPlaying = false;
@@ -778,38 +703,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     };
-    function applyTheme(theme) { document.body.classList.toggle('theme-rog', theme === 'rog'); themeButtons.forEach(btn => { btn.classList.toggle('active', btn.dataset.theme === theme); }); localStorage.setItem('lotteryTheme', theme); }
-    function loadTheme() { const savedTheme = localStorage.getItem('lotteryTheme') || 'default'; applyTheme(savedTheme); }
 
     // --- 4. 事件綁定區 ---
-    itemForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (!amIDealer) return;
-        const name = modalItemName.value.trim();
-        if (!name) return;
-        const type = modalItemType.value;
-        const index = modalItemIndex.value;
-        const list = type === 'prize' ? [...prizes] : [...quantities];
-        if (index) { list[index] = { name }; } else { list.push({ name }); }
-        if (type === 'prize') { socket.emit('updatePrizes', { roomId, prizes: list }); } 
-        else { socket.emit('updateQuantities', { roomId, quantities: list }); }
-        itemModal.classList.add('hidden');
-    });
-    function handleListClick(e) {
-        if (!amIDealer) return;
-        if (e.target.classList.contains('edit-btn')) { openItemModal(e.target.dataset.type, e.target.dataset.index); }
-        if (e.target.classList.contains('delete-btn')) {
-            const { type, index } = e.target.dataset;
-            let list = type === 'prize' ? [...prizes] : [...quantities];
-            if (confirm(`確定要刪除 "${list[index].name}" 嗎？`)) { 
-                list.splice(index, 1);
-                if (type === 'prize') { socket.emit('updatePrizes', { roomId, prizes: list }); }
-                else { socket.emit('updateQuantities', { roomId, quantities: list }); }
-            }
-        }
-    }
-    prizeList.addEventListener('click', handleListClick);
-    quantityList.addEventListener('click', handleListClick);
     participantNameInput.addEventListener('change', () => {
         if (amIDealer) return;
         const name = participantNameInput.value.trim();
@@ -821,9 +716,6 @@ document.addEventListener('DOMContentLoaded', () => {
              drawStatus.textContent += `請拉動拉桿！`;
         }
     });
-    addPrizeBtn.addEventListener('click', () => openItemModal('prize'));
-    addQuantityBtn.addEventListener('click', () => openItemModal('quantity'));
-    cancelModalBtn.addEventListener('click', () => itemModal.classList.add('hidden'));
     leverLeft.addEventListener('click', () => handleSpin('prize'));
     leverRight.addEventListener('click', () => handleSpin('quantity'));
     exportCsvBtn.addEventListener('click', () => {
@@ -836,9 +728,6 @@ document.addEventListener('DOMContentLoaded', () => {
         link.setAttribute('download', '雙滾輪得獎名單.csv');
         link.click();
     });
-    themeSwitcher.addEventListener('click', (e) => {
-        if (e.target.classList.contains('theme-btn')) { applyTheme(e.target.dataset.theme); }
-    });
     document.getElementById('toggle-music-btn').addEventListener('click', () => {
         if (!player || !isMusicPlayerReady) {
             document.getElementById('toggle-music-btn').textContent = '音樂載入中...';
@@ -849,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- 5. 程式啟動區 ---
-    loadTheme();
     initializeMultiplayer();
 });
 </script>
