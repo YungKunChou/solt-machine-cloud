@@ -259,6 +259,9 @@
         entry = document.getElementById('history-entry');
         status = document.getElementById('history-save-status');
         toolbar = document.getElementById('history-toolbar');
+        // Game pages keep automatic archiving; the history interface only exists in the lobby.
+        setInterval(() => { if (current && !suspended) saveCurrent(); }, 30000);
+        if (!entry) return;
         dialog = node('dialog', undefined, 'history-dialog');
         dialog.setAttribute('aria-labelledby', 'history-dialog-title');
         dialog.addEventListener('close', () => { renderVersion++; });
@@ -268,7 +271,6 @@
         });
         document.body.append(dialog);
         entry?.addEventListener('click', open);
-        document.getElementById('history-game-entry')?.addEventListener('click', open);
         refreshCount();
         window.addEventListener('storage', event => {
             if (event.key !== null && !event.key.startsWith(store.prefix)) return;
@@ -276,7 +278,6 @@
             if (dialog.open && screen === 'list') showList('', false);
         });
         window.addEventListener('focus', refreshCount);
-        setInterval(() => { if (current && !suspended) saveCurrent(); }, 30000);
     });
     window.addEventListener('pagehide', () => { suspended = true; release(); });
     window.addEventListener('pageshow', () => { suspended = false; if (current) track(current, true); });

@@ -30,7 +30,10 @@ function fixture(t, options = {}) {
     const elements = new Map();
     const document = { body: new Element('body'), activeElement: null,
         createElement: tag => new Element(tag),
-        getElementById(id) { if (!elements.has(id)) elements.set(id, new Element('button')); return elements.get(id); },
+        getElementById(id) {
+            if (options.gamePage && ['history-entry', 'history-save-status', 'history-toolbar'].includes(id)) return null;
+            if (!elements.has(id)) elements.set(id, new Element('button')); return elements.get(id);
+        },
         addEventListener(event, fn) { if (event === 'DOMContentLoaded') fn(); } };
     const map = new Map();
     const localStorage = { get length() { return map.size; }, key: i => [...map.keys()][i],
@@ -70,6 +73,15 @@ test('history empty/list/detail views work, cancellation preserves records and l
     assert.equal(f.document.activeElement.textContent, '取消');
     await f.click('取消');
     assert.equal(f.store.list().records.length, 1);
+});
+
+test('game page keeps automatic archiving without mounting history controls or a dialog', async t => {
+    const f = fixture(t, { gamePage: true });
+    assert.equal(f.dialog, undefined);
+    f.window.LOTTERY_HISTORY.track(room('game'), true);
+    await flush();
+    assert.equal(f.store.list().records[0].id, 'game');
+    assert.equal(f.element('history-save-status'), null);
 });
 
 test('clear excludes a host in another tab, preserves credentials, and clears after host page closes', async t => {

@@ -138,6 +138,56 @@ test('only confirmed host room updates are passed to automatic history saving', 
     assert.equal(f.archived.length, 1);
 });
 
+test('waiting players keep the name hint and see the exact number ahead as the queue advances', () => {
+    const f = pageFixture();
+    const players = { player: { id: 'player', name: null }, first: { id: 'first', name: '小美' },
+        second: { id: 'second', name: '小華' } };
+    f.update({ players, queue: ['first', 'second', 'player'] });
+    assert.equal(f.element('participant-name').placeholder, '在此輸入姓名…');
+    assert.equal(f.element('draw-status').textContent, '現在輪到 小美... 再等 2 人就輪到您了');
+    f.element('participant-name').value = '還在輸入';
+    f.update({ players, queue: ['second', 'player'] });
+    assert.equal(f.element('participant-name').value, '還在輸入');
+    assert.equal(f.element('participant-name').placeholder, '在此輸入姓名…');
+    assert.equal(f.element('draw-status').textContent, '現在輪到 小華... 再等 1 人就輪到您了');
+    f.update({ players, queue: ['player'] });
+    assert.equal(f.element('participant-name').placeholder, '在此輸入姓名…');
+    assert.equal(f.element('draw-status').textContent, '輪到你了！請先輸入姓名！');
+});
+
+test('spectators and completed players are not promised another turn', () => {
+    const f = pageFixture();
+    const players = { player: { id: 'player', name: '小明' }, first: { id: 'first', name: '小美' } };
+    f.update({ players, queue: ['first'], winners: [{ playerId: 'player', name: '小明', prize: '咖啡', quantity: '2' }] });
+    assert.equal(f.element('draw-status').textContent, '現在輪到 小美...');
+    f.update({ players, queue: [], winners: [{ playerId: 'player', name: '小明', prize: '咖啡', quantity: '2' }] });
+    assert.equal(f.element('draw-status').textContent, '您已完成抽獎。');
+    f.update({ players: { player: { id: 'player', removed: true } }, queue: [] });
+    assert.equal(f.element('draw-status').textContent, '觀看模式');
+});
+
+test('Enter submits a name after composition, and rejection restores waiting status without losing the hint', () => {
+    const f = pageFixture();
+    const players = { player: { id: 'player', name: null }, first: { id: 'first', name: '小美' } };
+    f.update({ players, queue: ['first', 'player'] });
+    const input = f.element('participant-name');
+    input.value = '小明';
+    input.fire('keydown', { key: 'Enter', isComposing: true });
+    assert.equal(f.count('setPlayerName'), 0);
+    input.fire('keydown', { key: 'Enter', preventDefault() {} });
+    assert.equal(f.count('setPlayerName'), 1);
+    f.handlers.nameError('姓名重複');
+    assert.equal(input.value, '');
+    assert.equal(input.placeholder, '在此輸入姓名…');
+    assert.equal(f.element('draw-status').textContent, '現在輪到 小美... 再等 1 人就輪到您了');
+    input.value = '新名字';
+    input.fire('keydown', { key: 'Enter', preventDefault() {} });
+    f.update({ players: { ...players, player: { id: 'player', name: '新名字' } }, queue: ['first', 'player'] });
+    input.fire('change');
+    assert.equal(f.count('setPlayerName'), 2);
+    assert.equal(input.value, '新名字');
+});
+
 test('host queue removes directly, disables duplicate clicks and hides feedback on success', () => {
     const f = pageFixture();
     const state = { dealerId: 'player', queue: ['target'], players: {

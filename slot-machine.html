@@ -131,18 +131,14 @@
                 </a>
             </div>
             </header>
-        <div id="history-toolbar" class="history-toolbar" hidden>
-            <span id="history-save-status" class="history-save-status" role="status" aria-live="polite"></span>
-            <button id="history-game-entry" type="button">歷史活動</button>
-        </div>
         <div id="prize-management" class="section-container" style="display:none"></div>
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
             <p id="queue-spectator-notice" class="queue-spectator-notice" role="status" hidden></p>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
-                <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
+                <input type="text" id="participant-name" placeholder="在此輸入姓名…" aria-label="玩家姓名" class="input-field w-full sm:w-2/3">
             </div>
-            <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 h-8"></div>
+            <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 min-h-8" role="status"></div>
             
            <div id="game-layout" class="flex flex-col gap-8 lg:flex-row lg:items-start">
            <div id="room-info" class="section-container mb-0 flex flex-col gap-8 items-stretch lg:w-2/5">
@@ -280,7 +276,33 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '此瀏覽器無法保存分頁身分，目前僅能觀看。請允許此網站使用儲存空間，再重新整理以加入隊伍。'
             : '你已被莊家移出隊伍，目前可繼續觀看；此分頁重新整理後不會自動加入隊伍。';
         participantNameInput.disabled = watchOnly || amIDealer;
-        if (watchOnly) participantNameInput.placeholder = '目前為觀看模式';
+        participantNameInput.placeholder = amIDealer ? '您是莊家，不參加抽獎'
+            : watchOnly ? '目前為觀看模式' : '在此輸入姓名…';
+    }
+
+    function renderPlayerStatus(turnChanged = false) {
+        const roomState = latestRoomState;
+        if (!roomState) return;
+        participantNameInput.disabled = watchOnly || amIDealer || roomState.currentTurnData.playerId === myPlayerId;
+        if (amIDealer) {
+            drawStatus.textContent = '這是莊家頁面，邀請玩家刷QR Code加入遊戲';
+        } else if (watchOnly) {
+            drawStatus.textContent = '觀看模式';
+        } else if (currentTurnPlayerId === myPlayerId) {
+            drawStatus.textContent = currentParticipantName ? `你好, ${currentParticipantName}！請拉動拉桿！` : '輪到你了！請先輸入姓名！';
+            if (turnChanged) {
+                reelStates.prize.hasBeenSpun = false;
+                reelStates.quantity.hasBeenSpun = false;
+            }
+        } else if (currentTurnPlayerId) {
+            const currentPlayerName = roomState.players[currentTurnPlayerId]?.name || '下一位玩家';
+            const ahead = roomState.queue.indexOf(myPlayerId);
+            drawStatus.textContent = `現在輪到 ${currentPlayerName}...` +
+                (ahead > 0 ? ` 再等 ${ahead} 人就輪到您了` : '');
+        } else {
+            drawStatus.textContent = winners.some(winner => winner.playerId === myPlayerId)
+                ? '您已完成抽獎。' : '目前沒有等待中的玩家。';
+        }
     }
 
     function enterSpectator() {
@@ -473,26 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderQueue();
             
-            participantNameInput.disabled = watchOnly || amIDealer || roomState.currentTurnData.playerId === myPlayerId;
-            if (amIDealer) {
-                drawStatus.textContent = "這是莊家頁面，邀請玩家刷QR Code加入遊戲";
-                participantNameInput.placeholder = "您是莊家，不參加抽獎";
-            } else if (watchOnly) {
-                drawStatus.textContent = '觀看模式';
-                participantNameInput.placeholder = '目前為觀看模式';
-            } else if (currentTurnPlayerId === myPlayerId) {
-                drawStatus.textContent = currentParticipantName ? `你好, ${currentParticipantName}！請拉動拉桿！` : "輪到你了！請先輸入姓名！";
-                participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
-                if (turnChanged) {
-                    reelStates.prize.hasBeenSpun = false;
-                    reelStates.quantity.hasBeenSpun = false;
-                }
-            } else {
-                const currentPlayerInQueue = roomState.players[currentTurnPlayerId];
-                const currentPlayerName = currentPlayerInQueue?.name || '下一位玩家';
-                drawStatus.textContent = `現在輪到 ${currentPlayerName}...`;
-                participantNameInput.placeholder = "等待輪到你...";
-            }
+            renderPlayerStatus(turnChanged);
             
             // ★★★ 關鍵修正：檢查是否有滾輪正在顯示結果，如果有就跳過重新渲染 ★★★
             const isShowingAnyResult = reelStates.prize.isShowingResult || reelStates.quantity.isShowingResult;
@@ -521,9 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('nameError', (message) => {
             alert(message);
             participantNameInput.value = currentParticipantName || '';
-            if (currentTurnPlayerId === myPlayerId) {
-                drawStatus.textContent = currentParticipantName ? `已登記：${currentParticipantName}` : '輪到你了！請先輸入姓名！';
-            }
+            renderPlayerStatus();
         });
         socket.on('error', (msg) => alert('錯誤：' + msg));
     }
@@ -924,12 +925,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 4. 事件綁定區 ---
-    participantNameInput.addEventListener('change', () => {
+    function submitParticipantName() {
         if (amIDealer || watchOnly || !socket?.connected || !hasJoinedRoom) return;
         const name = participantNameInput.value.trim();
-        if (!name) return;
+        if (!name || name === currentParticipantName) return;
         socket.emit('setPlayerName', { roomId, name });
         drawStatus.textContent = '正在確認姓名…';
+    }
+    participantNameInput.addEventListener('change', submitParticipantName);
+    participantNameInput.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+        event.preventDefault();
+        submitParticipantName();
     });
     leverLeft.addEventListener('click', () => handleSpin('prize'));
     leverRight.addEventListener('click', () => handleSpin('quantity'));
