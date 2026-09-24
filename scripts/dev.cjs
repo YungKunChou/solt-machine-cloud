@@ -23,8 +23,11 @@ const publicFiles = new Map([
     ['settings-rules.js', 'text/javascript; charset=utf-8'],
     ['settings-editor.js', 'text/javascript; charset=utf-8'],
     ['settings.css', 'text/css; charset=utf-8'],
+    ['queue.css', 'text/css; charset=utf-8'],
     ['assets/icons/plus.svg', 'image/svg+xml'],
     ['assets/icons/trash.svg', 'image/svg+xml'],
+    ['assets/icons/lock-fill.svg', 'image/svg+xml'],
+    ['assets/icons/check-circle-fill.svg', 'image/svg+xml'],
     ['Lobby.jpg', 'image/jpeg'],
     ['slot-machine.png', 'image/png']
 ]);

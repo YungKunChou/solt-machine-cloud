@@ -8,6 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../room-session.js'), 'utf8
 function browser(storage = new Map(), backendUrl = 'http://127.0.0.1:3001') {
     const window = {
         LOTTERY_CONFIG: { backendUrl },
+        crypto: require('node:crypto').webcrypto,
         sessionStorage: { getItem: key => storage.get(key) || null,
             setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
     };
@@ -26,6 +27,33 @@ test('host credential survives a page reload and is isolated by tab, backend and
     assert.equal(first.read('room_b'), null);
     first.remove('room_a');
     assert.equal(first.read('room_a'), null);
+});
+
+test('participant tab identity and removal survive reload without sharing host credentials', () => {
+    const storage = new Map();
+    const first = browser(storage).LOTTERY_PLAYER_SESSION;
+    const prepared = first.prepare('room_a');
+    assert.match(prepared.token, /^[a-f0-9]{64}$/);
+    assert.equal(prepared.removed, false);
+    assert.equal(first.markRemoved('room_a'), true);
+    const reloaded = browser(storage);
+    assert.equal(reloaded.LOTTERY_PLAYER_SESSION.prepare('room_a').token, prepared.token);
+    assert.equal(reloaded.LOTTERY_PLAYER_SESSION.prepare('room_a').removed, true);
+    assert.equal(reloaded.LOTTERY_ROOM_SESSION.read('room_a'), null);
+    assert.equal(first.prepare('room_b').removed, false);
+    assert.notEqual(browser().LOTTERY_PLAYER_SESSION.prepare('room_a').token, prepared.token);
+    assert.equal(browser(storage, 'different-backend').LOTTERY_PLAYER_SESSION.prepare('room_a').removed, false);
+});
+
+test('unavailable storage or damaged identity cannot silently create a new place in the queue', () => {
+    const window = browser();
+    window.sessionStorage.setItem = () => { throw Error('blocked'); };
+    assert.equal(window.LOTTERY_PLAYER_SESSION.prepare('room_a'), null);
+    assert.equal(window.LOTTERY_PLAYER_SESSION.markRemoved('room_a'), false);
+    const storage = new Map([['lottery:participant:http://127.0.0.1:3001:room_a', '{broken']]);
+    assert.equal(browser(storage).LOTTERY_PLAYER_SESSION.prepare('room_a'), null);
+    storage.set('lottery:participant:http://127.0.0.1:3001:room_a', JSON.stringify({ token: 'bad', removed: true }));
+    assert.equal(browser(storage).LOTTERY_PLAYER_SESSION.prepare('room_a'), null);
 });
 
 test('blocked browser storage and invalid credentials fail gracefully', () => {

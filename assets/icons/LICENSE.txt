@@ -1,5 +1,7 @@
 Bootstrap Icons: plus.svg and trash.svg
 Sources: https://icons.getbootstrap.com/icons/plus/ and https://icons.getbootstrap.com/icons/trash/
+Queue icons: lock-fill.svg and check-circle-fill.svg
+Sources: https://icons.getbootstrap.com/icons/lock-fill/ and https://icons.getbootstrap.com/icons/check-circle-fill/
 
 The MIT License (MIT)
 

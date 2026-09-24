@@ -32,6 +32,7 @@ function pageFixture(options = {}) {
         }
         get innerHTML() { return this.html || ''; }
         appendChild(child) { this.children.push(child); }
+        setAttribute(name, value) { (this.attributes ||= {})[name] = value; }
         querySelectorAll() { return this.children; }
         addEventListener(event, fn) { (this.events[event] ||= new Set()).add(fn); }
         removeEventListener(event, fn) { this.events[event]?.delete(fn); }
@@ -49,6 +50,8 @@ function pageFixture(options = {}) {
     const pendingSpins = [];
     const pendingStops = [];
     const pendingJoins = [];
+    const pendingRemovals = [];
+    let participantSession = options.playerSession === null ? null : { token: 'a'.repeat(64), removed: false, ...options.playerSession };
     const archived = [];
     let savedToken = options.dealerToken || null;
     let deferStops = false;
@@ -60,8 +63,9 @@ function pageFixture(options = {}) {
             sent.push({ event, data });
             if (event === 'joinRoom') {
                 if (options.deferJoin) pendingJoins.push(callback);
-                else callback(null, { success: true });
+                else callback(null, { success: true, role: options.joinRole || (data.spectator ? 'spectator' : 'player') });
             }
+            if (event === 'removeQueuedPlayer') pendingRemovals.push({ data, callback });
             if (event === 'spin') pendingSpins.push({ data, callback });
             if (event === 'reelStopped') {
                 if (deferStops) pendingStops.push(callback);
@@ -82,6 +86,10 @@ function pageFixture(options = {}) {
         window: {
             LOTTERY_CONFIG: { backendUrl: 'local-only' }, location: { search: '?room=test', href: options.href || 'http://local/?room=test' },
             LOTTERY_ROOM_SESSION: { read: () => savedToken, remove: () => { savedToken = null; } },
+            LOTTERY_PLAYER_SESSION: {
+                prepare: () => participantSession,
+                markRemoved: () => { if (participantSession) participantSession.removed = true; return !!participantSession; }
+            },
             createLotterySettingsEditor: () => ({ update() {}, disconnect() {} }),
             LOTTERY_HISTORY: { track: (state, dealer) => { if (dealer) archived.push(state); }, stop() {}, download() {} },
             getComputedStyle: () => ({ transform: 'none' })
@@ -99,7 +107,8 @@ function pageFixture(options = {}) {
     }
     update();
     return {
-        sent, element, handlers, pendingSpins, pendingStops, pendingJoins, update, timers, socket, archived,
+        sent, element, handlers, pendingSpins, pendingStops, pendingJoins, pendingRemovals, update, timers, socket, archived,
+        get participantSession() { return participantSession; },
         click(type) { element(type === 'prize' ? 'lever-left' : 'lever-right').fire('click'); },
         accept(type, turnId = 1) {
             const index = pendingSpins.findIndex(request => request.data.type === type);
@@ -127,6 +136,88 @@ test('only confirmed host room updates are passed to automatic history saving', 
     assert.equal(f.archived[0].winners.length, 1);
     f.update({ dealerId: 'other-host' });
     assert.equal(f.archived.length, 1);
+});
+
+test('host queue removes directly, disables duplicate clicks and hides feedback on success', () => {
+    const f = pageFixture();
+    const state = { dealerId: 'player', queue: ['target'], players: {
+        player: { id: 'player' }, target: { id: 'target', name: '<小明>' }
+    } };
+    f.update(state);
+    const row = f.element('queue-list').children[0];
+    const removeButton = row.children[2];
+    assert.equal(removeButton.textContent, 'X');
+    assert.equal(removeButton.attributes['aria-label'], '將<小明>移出隊伍');
+    removeButton.fire('click'); removeButton.fire('click');
+    assert.equal(f.pendingRemovals.length, 1);
+    assert.equal(f.pendingRemovals[0].data.playerId, 'target');
+    assert.equal(f.element('queue-list').children[0].children[2].disabled, true);
+    f.update({ ...state, queue: [] });
+    f.pendingRemovals[0].callback(null, { success: true });
+    assert.equal(f.element('queue-feedback').textContent, '');
+    assert.equal(f.element('queue-feedback').hidden, true);
+    assert.equal(f.element('queue-empty').hidden, false);
+});
+
+test('active players have lock status rather than remove controls; ordinary players have no controls', () => {
+    const f = pageFixture();
+    assert.equal(f.element('queue-list').children[0].children.length, 2);
+    f.update({ dealerId: 'player', queue: ['target'], players: { target: { id: 'target', name: '小美' } },
+        currentTurnData: { id: 1, playerId: 'target' } });
+    const row = f.element('queue-list').children[0];
+    assert.equal(row.className, 'queue-active');
+    assert.equal(row.children[2].className, 'queue-locked');
+    assert.equal(row.children[2].children[1].textContent, '抽獎中');
+});
+
+test('removal errors/timeouts permit retry and a late host reply cannot update a replacement session', () => {
+    const f = pageFixture();
+    const state = { dealerId: 'player', queue: ['target'], players: { target: { id: 'target', name: '小明' } } };
+    f.update(state);
+    f.element('queue-list').children[0].children[2].fire('click');
+    f.pendingRemovals[0].callback(null, { success: false, message: '玩家已開始抽獎，無法移出。' });
+    assert.match(f.element('queue-feedback').textContent, /已開始/);
+    f.element('queue-list').children[0].children[2].fire('click');
+    f.pendingRemovals[1].callback(Error('timeout'));
+    assert.match(f.element('queue-feedback').textContent, /未收到移出確認/);
+    f.element('queue-list').children[0].children[2].fire('click');
+    f.socket.disconnect();
+    f.pendingRemovals[2].callback(null, { success: true });
+    assert.equal(f.element('queue-feedback').hidden, true);
+});
+
+test('removed player remains connected for viewing, cannot spin or rename, and reconnects as spectator', () => {
+    const f = pageFixture();
+    f.handlers.removedFromQueue({ roomId: 'other' });
+    assert.equal(f.participantSession.removed, false);
+    f.handlers.removedFromQueue({ roomId: 'test' });
+    assert.equal(f.socket.connected, true);
+    assert.equal(f.participantSession.removed, true);
+    assert.equal(f.element('queue-spectator-notice').hidden, false);
+    f.click('prize');
+    f.element('participant-name').value = '新名字';
+    f.element('participant-name').fire('change');
+    assert.equal(f.count('spin'), 0);
+    assert.equal(f.count('setPlayerName'), 0);
+    f.socket.disconnect(); f.socket.connected = true; f.handlers.connect();
+    const joins = f.sent.filter(item => item.event === 'joinRoom');
+    assert.equal(joins.at(-1).data.spectator, true);
+    assert.equal(joins.at(-1).data.participantToken, f.participantSession.token);
+    assert.doesNotMatch(f.element('room-url-input').value, /token|spectator|aaaa/);
+    const reloaded = pageFixture({ playerSession: { ...f.participantSession } });
+    assert.equal(reloaded.sent.find(item => item.event === 'joinRoom').data.spectator, true);
+});
+
+test('room state recovers a missed removal event and unsupported servers cannot requeue spectators', () => {
+    const f = pageFixture();
+    f.update({ queue: [], players: { player: { id: 'player', name: '小明', removed: true } } });
+    assert.equal(f.participantSession.removed, true);
+    assert.equal(f.element('participant-name').disabled, true);
+    const unsupported = pageFixture({ playerSession: { removed: true }, joinRole: 'player' });
+    assert.equal(unsupported.socket.connected, false);
+    const blocked = pageFixture({ playerSession: null });
+    assert.equal(blocked.sent.find(item => item.event === 'joinRoom').data.spectator, true);
+    assert.match(blocked.element('queue-spectator-notice').textContent, /無法保存分頁身分/);
 });
 
 for (const order of [['prize', 'quantity'], ['quantity', 'prize']]) {

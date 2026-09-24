@@ -59,6 +59,7 @@
         .quantity-list-item { position: relative; justify-content: flex-end; }
         .quantity-list-value { position: absolute; left: 50%; transform: translateX(-50%); }
         #winners-table > div { box-sizing: border-box; height: 2.4rem; padding-top: 0.3rem; padding-bottom: 0.3rem; }
+        #winners-table { max-height: 7.2rem; overflow-y: auto; }
         #queue-list { max-height: 7.5rem; overflow-y: auto; }
         #queue-list li { height: 1.5rem; }
         #room-info { padding: 1.5rem; gap: 1.25rem; }
@@ -106,6 +107,7 @@
         }
     </style>
     <link rel="stylesheet" href="settings.css">
+    <link rel="stylesheet" href="queue.css">
     <script src="settings-rules.js"></script>
     <script src="settings-editor.js"></script>
 </head>
@@ -136,6 +138,7 @@
         <div id="prize-management" class="section-container" style="display:none"></div>
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
+            <p id="queue-spectator-notice" class="queue-spectator-notice" role="status" hidden></p>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
                 <input type="text" id="participant-name" placeholder="請在此輸入您的姓名後按 Enter" class="input-field w-full sm:w-2/3">
             </div>
@@ -145,27 +148,26 @@
            <div id="room-info" class="section-container mb-0 flex flex-col gap-8 items-stretch lg:w-2/5">
 
             <div id="dealer-share-info" class="w-full text-center border-b border-gray-200 pb-4">
-               <h4 class="font-bold text-center text-lg mb-2">刷讀QR Code排隊加入</h4>
-               <div id="qrcode" class="mx-auto my-2 bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
-                 <span class="text-xs">QR Code 生成中</span>
+               <h4 class="font-bold text-left text-lg mb-2">刷讀QR Code排隊加入</h4>
+               <div class="room-share-row">
+                 <div id="qrcode" class="bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
+                   <span class="text-xs">QR Code 生成中</span>
+                 </div>
+                 <textarea id="room-url-input" readonly aria-label="分享活動網址" spellcheck="false" class="input-field text-xs"></textarea>
                </div>
-               <input type="text" id="room-url-input" readonly class="input-field w-full text-center text-xs mt-3">
              </div>
 
-            <div class="w-full border-b border-gray-200 pb-4">
-               <h4 class="font-bold text-center text-lg mb-2">排隊列表</h4>
-               <ol id="queue-list" class="list-decimal list-inside text-center"></ol>
+            <div id="queue-section" class="w-full">
+               <h4 class="font-bold text-left text-lg mb-2">排隊列表 <span id="queue-count">0 人</span></h4>
+               <ol id="queue-list" aria-label="玩家排隊順序"></ol>
+               <p id="queue-empty" class="queue-empty" hidden>目前沒有等待中的玩家。</p>
+               <div id="queue-feedback" class="queue-feedback" role="status" aria-live="polite" hidden></div>
           </div>
     
     <div id="winners-section" class="w-full">
-        <h4 class="font-bold text-center text-lg mb-2">光榮榜</h4>
+        <h4 class="font-bold text-left text-lg mb-2">光榮榜</h4>
         <div id="winners-table-container" class="bg-gray-50 rounded-lg overflow-hidden mb-4">
-            <div class="grid grid-cols-8 font-bold px-4 py-2 bg-gray-100 text-sm">
-              <div class="col-span-2 whitespace-nowrap">得獎人</div>
-              <div class="col-span-5 whitespace-nowrap">抽中獎項</div>
-              <div class="text-center col-span-1 whitespace-nowrap">數量</div>
-            </div>
-            <div id="winners-table" class="max-h-48 overflow-y-auto"></div>
+            <div id="winners-table"></div>
         </div>
         <button id="export-csv-btn" class="btn btn-secondary w-full">匯出得獎名單 (CSV)</button>
     </div>
@@ -213,6 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let joinGeneration = 0;
     let joinRetryTimeout = null;
     let dealerReplaced = false;
+    let latestRoomState = null;
+    let pendingRemoval = null;
+    let watchOnly = false;
+    let wasRemoved = false;
+    let participantSessionUnavailable = false;
     let isInitialRender = true; // 【新增】增加一個旗標來判斷是否為首次渲染
 
     // 滾輪狀態變數，與您「雙滾輪」設計完全同步
@@ -259,6 +266,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 函式定義區 ---
 
+    function queueMessage(message, kind = 'error') {
+        const feedback = document.getElementById('queue-feedback');
+        feedback.textContent = message;
+        feedback.dataset.kind = kind;
+        feedback.hidden = !message;
+    }
+
+    function showSpectatorNotice() {
+        const notice = document.getElementById('queue-spectator-notice');
+        notice.hidden = !watchOnly || amIDealer;
+        notice.textContent = participantSessionUnavailable
+            ? '此瀏覽器無法保存分頁身分，目前僅能觀看。請允許此網站使用儲存空間，再重新整理以加入隊伍。'
+            : '你已被莊家移出隊伍，目前可繼續觀看；此分頁重新整理後不會自動加入隊伍。';
+        participantNameInput.disabled = watchOnly || amIDealer;
+        if (watchOnly) participantNameInput.placeholder = '目前為觀看模式';
+    }
+
+    function enterSpectator() {
+        const newlyRemoved = !wasRemoved;
+        wasRemoved = true;
+        watchOnly = true;
+        if (newlyRemoved) {
+            window.LOTTERY_PLAYER_SESSION.markRemoved(roomId);
+            resetLocalRound();
+        }
+        showSpectatorNotice();
+    }
+
+    function renderQueue() {
+        if (!latestRoomState) return;
+        const roomState = latestRoomState;
+        const queueList = document.getElementById('queue-list');
+        queueList.innerHTML = '';
+        document.getElementById('queue-count').textContent = `${roomState.queue.length} 人`;
+        document.getElementById('queue-empty').hidden = roomState.queue.length > 0;
+        if (!amIDealer) document.getElementById('queue-feedback').hidden = true;
+        roomState.queue.forEach((playerId, index) => {
+            const player = roomState.players[playerId];
+            const playerName = player?.name || `玩家 #${index + 1}`;
+            const active = roomState.currentTurnData.id != null && roomState.currentTurnData.playerId === playerId;
+            const li = document.createElement('li');
+            li.className = active ? 'queue-active' : '';
+            const number = document.createElement('span');
+            number.className = 'queue-number'; number.textContent = String(index + 1);
+            const name = document.createElement('span');
+            name.className = playerId === myPlayerId ? 'queue-name queue-self' : 'queue-name';
+            name.textContent = playerName + (playerId === myPlayerId ? '（你）' : '');
+            if (!player?.name) {
+                const subtitle = document.createElement('span');
+                subtitle.className = 'queue-subtitle'; subtitle.textContent = '尚未填姓名';
+                name.appendChild(subtitle);
+            }
+            li.appendChild(number); li.appendChild(name);
+            if (active) {
+                const status = document.createElement('span'); status.className = 'queue-locked';
+                const icon = document.createElement('span'); icon.className = 'queue-icon'; icon.setAttribute('aria-hidden', 'true');
+                const label = document.createElement('span'); label.textContent = '抽獎中';
+                status.appendChild(icon); status.appendChild(label); li.appendChild(status);
+            } else if (amIDealer) {
+                const remove = document.createElement('button');
+                remove.type = 'button'; remove.className = 'queue-remove';
+                remove.textContent = pendingRemoval === playerId ? '…' : 'X';
+                remove.setAttribute('aria-label', `將${playerName}移出隊伍`);
+                remove.setAttribute('aria-busy', String(pendingRemoval === playerId));
+                remove.title = pendingRemoval === playerId ? '正在移出' : `將${playerName}移出隊伍`;
+                remove.disabled = !socket?.connected || !hasJoinedRoom || pendingRemoval !== null;
+                remove.addEventListener('click', () => removeQueuedPlayer(playerId));
+                li.appendChild(remove);
+            }
+            queueList.appendChild(li);
+        });
+    }
+
+    function removeQueuedPlayer(playerId) {
+        if (!amIDealer || !socket?.connected || !hasJoinedRoom || pendingRemoval !== null) return;
+        pendingRemoval = playerId;
+        const generation = joinGeneration;
+        queueMessage('');
+        renderQueue();
+        socket.timeout(6000).emit('removeQueuedPlayer', { roomId, playerId }, (error, result) => {
+            if (generation !== joinGeneration || !amIDealer) return;
+            pendingRemoval = null;
+            if (error) queueMessage('未收到移出確認，請查看最新列表；若玩家仍在隊伍中，可再試一次。', 'error');
+            else if (!result?.success) queueMessage(result?.message || '無法移出玩家，請查看最新列表。', 'error');
+            else queueMessage('');
+            renderQueue();
+        });
+    }
+
     function initializeMultiplayer() {
         const backendUrl = window.LOTTERY_CONFIG.backendUrl;
         socket = io(backendUrl);
@@ -279,8 +375,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
             drawStatus.textContent = '正在加入房間…';
             const dealerToken = window.LOTTERY_ROOM_SESSION.read(roomId);
+            const participantSession = dealerToken ? null : window.LOTTERY_PLAYER_SESSION.prepare(roomId);
+            participantSessionUnavailable = !dealerToken && !participantSession;
+            wasRemoved = wasRemoved || !!participantSession?.removed;
+            watchOnly = !dealerToken && (wasRemoved || participantSessionUnavailable);
+            showSpectatorNotice();
             function join(attempt = 1) {
-                socket.timeout(6000).emit('joinRoom', { roomId, dealerToken }, (error, result) => {
+                socket.timeout(6000).emit('joinRoom', {
+                    roomId, dealerToken, participantToken: participantSession?.token, spectator: watchOnly
+                }, (error, result) => {
                     if (generation !== joinGeneration || !socket.connected || dealerReplaced) return;
                     if (error && attempt < 3) {
                         joinRetryTimeout = setTimeout(() => join(attempt + 1), 1000);
@@ -291,7 +394,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         drawStatus.textContent = result?.message || '未收到加入確認，請確認前後端已更新，再重新整理頁面。';
                         return;
                     }
+                    if (watchOnly && result.role !== 'spectator' && result.role !== 'dealer') {
+                        socket.disconnect();
+                        drawStatus.textContent = '服務尚未支援觀看模式，請莊家更新後端後再試。';
+                        return;
+                    }
+                    if (result.role === 'spectator' && !participantSessionUnavailable) enterSpectator();
                     hasJoinedRoom = true;
+                    renderQueue();
                 });
             }
             join();
@@ -309,13 +419,15 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(joinRetryTimeout);
             hasJoinedRoom = false;
             amIDealer = false;
+            pendingRemoval = null;
+            renderQueue();
             settingsEditor.disconnect();
             resetLocalRound();
             currentParticipantName = null;
             prizeManagementSection.style.display = 'none';
             dealerShareInfo.style.display = 'none';
             exportCsvBtn.style.display = 'none';
-            if (!dealerReplaced) drawStatus.textContent = '連線中斷，正在重新連線…';
+            if (!dealerReplaced) drawStatus.textContent = watchOnly ? '觀看連線中斷，正在重新連線…' : '連線中斷，正在重新連線…';
         });
         socket.on('dealerReplaced', (data) => {
             if (data?.roomId !== roomId) return;
@@ -326,8 +438,13 @@ document.addEventListener('DOMContentLoaded', () => {
             drawStatus.textContent = '主持權已在另一個分頁恢復，請使用最新的主持人分頁。';
         });
         socket.on('connect_error', () => settingsEditor.disconnect());
+        socket.on('removedFromQueue', data => {
+            if (data?.roomId !== roomId || dealerReplaced || amIDealer) return;
+            enterSpectator();
+        });
         socket.on('updateRoomState', (roomState) => {
             if (dealerReplaced) return;
+            latestRoomState = roomState;
             const turnChanged = currentTurnPlayerId !== roomState.queue[0];
             if (turnChanged) resetLocalRound();
             const settingsChanged = JSON.stringify(prizes) !== JSON.stringify(roomState.prizes) || JSON.stringify(quantities) !== JSON.stringify(roomState.quantities);
@@ -337,6 +454,9 @@ document.addEventListener('DOMContentLoaded', () => {
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
+            if (!amIDealer && roomState.players[myPlayerId]?.removed && !participantSessionUnavailable) enterSpectator();
+            if (amIDealer) watchOnly = false;
+            showSpectatorNotice();
             window.LOTTERY_HISTORY.track(roomState, amIDealer);
             const registeredName = roomState.players[myPlayerId]?.name || null;
             if (registeredName !== currentParticipantName) participantNameInput.value = registeredName || '';
@@ -351,22 +471,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 更新當前玩家指示器
             updateCurrentPlayerIndicator(roomState);
             
-            const queueList = document.getElementById('queue-list');
-            queueList.innerHTML = '';
-            (roomState.queue || []).forEach((playerId, index) => {
-                const player = roomState.players[playerId];
-                const playerName = player && player.name ? player.name : `玩家 #${index + 1}`;
-                const li = document.createElement('li');
-                let text = playerName;
-                if (playerId === myPlayerId) { text += ' (你)'; li.style.fontWeight = 'bold'; li.classList.add('text-green-500'); }
-                li.textContent = text;
-                queueList.appendChild(li);
-            });
+            renderQueue();
             
-            participantNameInput.disabled = amIDealer || roomState.currentTurnData.playerId === myPlayerId;
+            participantNameInput.disabled = watchOnly || amIDealer || roomState.currentTurnData.playerId === myPlayerId;
             if (amIDealer) {
                 drawStatus.textContent = "這是莊家頁面，邀請玩家刷QR Code加入遊戲";
                 participantNameInput.placeholder = "您是莊家，不參加抽獎";
+            } else if (watchOnly) {
+                drawStatus.textContent = '觀看模式';
+                participantNameInput.placeholder = '目前為觀看模式';
             } else if (currentTurnPlayerId === myPlayerId) {
                 drawStatus.textContent = currentParticipantName ? `你好, ${currentParticipantName}！請拉動拉桿！` : "輪到你了！請先輸入姓名！";
                 participantNameInput.placeholder = "輪到你了！請輸入姓名後按 Enter";
@@ -672,7 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
             
     function handleSpin(type) {
-        if (!socket.connected || !hasJoinedRoom || amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
+        if (!socket.connected || !hasJoinedRoom || amIDealer || watchOnly || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
         const state = reelStates[type];
         if (state.isRequesting) return;
         if (state.hasStopped) {
@@ -812,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 4. 事件綁定區 ---
     participantNameInput.addEventListener('change', () => {
-        if (amIDealer) return;
+        if (amIDealer || watchOnly || !socket?.connected || !hasJoinedRoom) return;
         const name = participantNameInput.value.trim();
         if (!name) return;
         socket.emit('setPlayerName', { roomId, name });

@@ -14,6 +14,9 @@ const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } 
 const gameRooms = Object.create(null);
 // Keep host credentials outside the public room state and all room broadcasts.
 const dealerCredentials = new WeakMap();
+// Participant tab tokens are private and only prevent removed tabs from rejoining.
+const participantSessions = new WeakMap();
+const participantRole = (room, id) => room.dealerId === id ? 'dealer' : room.players[id]?.removed ? 'spectator' : 'player';
 
 function emptyTurn() {
     return { id: null, playerId: null, playerName: null, prize: null, quantity: null,
@@ -54,6 +57,7 @@ app.post('/create-room', (req, res) => {
     };
     const dealerToken = randomBytes(32).toString('hex');
     dealerCredentials.set(gameRooms[roomId], dealerToken);
+    participantSessions.set(gameRooms[roomId], { tokens: new Map(), removed: new Set() });
     console.log(`新房間已建立: ${roomId}`);
     res.set?.('Cache-Control', 'no-store');
     res.json({ success: true, roomId, dealerToken });
@@ -70,7 +74,7 @@ io.on('connection', (socket) => {
 
     socket.on('joinRoom', (payload, ack) => {
         // String payloads remain valid for participant links from older pages.
-        const { roomId, dealerToken } = typeof payload === 'string' ? { roomId: payload } : (payload || {});
+        const { roomId, dealerToken, participantToken, spectator } = typeof payload === 'string' ? { roomId: payload } : (payload || {});
         const reply = result => {
             if (typeof ack === 'function') ack(result);
             else if (!result.success) socket.emit('error', result.message);
@@ -80,6 +84,11 @@ io.on('connection', (socket) => {
             return;
         }
         const room = gameRooms[roomId];
+        if (participantToken != null && (typeof participantToken !== 'string' || !/^[a-f0-9]{64}$/.test(participantToken))) {
+            reply({ success: false, message: '分頁識別無效，請重新開啟活動。' });
+            return;
+        }
+        const sessions = participantSessions.get(room);
         const isRestoringDealer = typeof dealerToken === 'string' && dealerToken === dealerCredentials.get(room);
         if (dealerToken != null && !isRestoringDealer) {
             reply({ success: false, message: '無法確認主持人身分，請使用原本建立房間的分頁。' });
@@ -90,12 +99,16 @@ io.on('connection', (socket) => {
             // A retry must never erase a name, change queue order or re-enrol a winner.
             socket.join(roomId);
             socket.emit('updateRoomState', room);
-            reply({ success: true, role: room.dealerId === socket.id ? 'dealer' : 'player' });
+            reply({ success: true, role: participantRole(room, socket.id) });
             return;
         }
 
         socket.join(roomId);
         room.players[socket.id] = existingPlayer || { id: socket.id, name: null };
+        if (!isRestoringDealer) {
+            if (participantToken) sessions.tokens.set(socket.id, participantToken);
+            if (spectator === true || sessions.removed.has(participantToken)) room.players[socket.id].removed = true;
+        }
         if (isRestoringDealer) {
             const oldDealerId = room.dealerId;
             room.dealerId = socket.id;
@@ -106,17 +119,57 @@ io.on('connection', (socket) => {
             if (room.currentTurnData.playerId === socket.id) room.currentTurnData = emptyTurn();
             room.queue = room.queue.filter(id => id !== socket.id && id !== oldDealerId);
             console.log(`房間 ${roomId} 的主持人已連線: ${socket.id}`);
-        } else if (!room.queue.includes(socket.id) && !room.winners.some(winner => winner.playerId === socket.id)) {
+        } else if (!room.players[socket.id].removed && !room.queue.includes(socket.id) && !room.winners.some(winner => winner.playerId === socket.id)) {
             room.queue.push(socket.id);
         }
         broadcastRoomState(roomId);
-        reply({ success: true, role: isRestoringDealer ? 'dealer' : 'player' });
+        reply({ success: true, role: participantRole(room, socket.id) });
+    });
+
+    socket.on('removeQueuedPlayer', (payload, ack) => {
+        const reply = typeof ack === 'function' ? ack : () => {};
+        const { roomId, playerId } = payload || {};
+        const room = typeof roomId === 'string' ? gameRooms[roomId] : null;
+        if (!room || room.dealerId !== socket.id) {
+            reply({ success: false, message: '只有此房間的莊家可以移出玩家。' });
+            return;
+        }
+        if (typeof playerId !== 'string' || !Object.hasOwn(room.players, playerId) || playerId === room.dealerId) {
+            reply({ success: false, message: '此玩家已不在隊伍中，請查看最新列表。' });
+            return;
+        }
+        const player = room.players[playerId];
+        if (player.removed) {
+            reply({ success: true, alreadyRemoved: true });
+            return;
+        }
+        if (!room.queue.includes(playerId)) {
+            reply({ success: false, message: '此玩家已不在隊伍中，請查看最新列表。' });
+            return;
+        }
+        if (room.currentTurnData.id !== null && room.currentTurnData.playerId === playerId) {
+            reply({ success: false, message: '玩家已開始抽獎，無法移出。' });
+            return;
+        }
+        // Check and remove synchronously: spin and removal are decided in server arrival order.
+        player.removed = true;
+        room.queue = room.queue.filter(id => id !== playerId);
+        const sessions = participantSessions.get(room);
+        const token = sessions.tokens.get(playerId);
+        if (token) sessions.removed.add(token);
+        io.to(playerId).emit('removedFromQueue', { roomId, activityId: room.activityId });
+        broadcastRoomState(roomId);
+        reply({ success: true });
     });
     
     socket.on('setPlayerName', (payload) => {
         let { roomId, name } = payload || {};
         const room = gameRooms[roomId];
         if (room && room.players[socket.id]) {
+            if (room.players[socket.id].removed) {
+                socket.emit('nameError', '你已被移出隊伍，目前僅能觀看。');
+                return;
+            }
             if (typeof name !== 'string' || !name.trim() || name.trim().length > 80) {
                 socket.emit('nameError', '姓名須為 1 至 80 字，不能只填空白。');
                 return;
@@ -126,7 +179,7 @@ io.on('connection', (socket) => {
                 socket.emit('nameError', '本輪抽獎已開始，無法更改姓名。');
                 return;
             }
-            const isNameTaken = Object.values(room.players).some(player => player && player.id !== socket.id && player.name === name);
+            const isNameTaken = Object.values(room.players).some(player => player && !player.removed && player.id !== socket.id && player.name === name);
             if (isNameTaken) {
                 socket.emit('nameError', '這個名字已經被使用了，請換一個！');
                 return;
@@ -308,6 +361,7 @@ io.on('connection', (socket) => {
                     console.log(`房間 ${currentRoomId} 的莊家已離線。`);
                 }
                 delete room.players[socket.id];
+                participantSessions.get(room).tokens.delete(socket.id);
                 room.queue = room.queue.filter(id => id !== socket.id);
                 broadcastRoomState(currentRoomId);
             }
