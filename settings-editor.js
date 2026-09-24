@@ -3,7 +3,7 @@
     const rules = window.LotterySettingsRules;
     const labels = { prizes: '獎項', quantities: '數量' };
     const types = Object.keys(labels);
-    const copy = list => list.map(item => ({ name: item.name }));
+    const copy = list => list.map(item => ({ ...(item.optionId ? { optionId: item.optionId } : {}), name: item.name }));
     window.createLotterySettingsEditor = function (root, submit) {
         let snapshot = { prizes: [], quantities: [], settingsRevision: 0 };
         let draft = null;
@@ -19,7 +19,10 @@
         root.innerHTML = `
             <div class="settings-heading">
                 <div class="settings-heading-title"><h2>獎項與數量設定</h2><span class="settings-badge" hidden>編輯中</span></div>
-                <button type="button" class="settings-button" id="edit-settings-btn">編輯設定</button>
+                <div class="settings-heading-actions">
+                    <button type="button" class="settings-button" id="edit-settings-btn">編輯設定</button>
+                    <button type="button" class="settings-button restore-defaults" id="restore-settings-btn">回復預設</button>
+                </div>
             </div>
             <div class="settings-columns"></div>
             <p class="settings-notice" role="status" aria-live="polite" hidden></p>
@@ -32,6 +35,7 @@
             </div>`;
         const query = selector => root.querySelector(selector);
         const editButton = query('#edit-settings-btn');
+        const restoreButton = query('#restore-settings-btn');
         const cancelButton = query('#cancel-settings-btn');
         const saveButton = query('#save-settings-btn');
         const columns = {};
@@ -161,6 +165,9 @@
             root.classList.toggle('is-editing', Boolean(draft));
             editButton.hidden = Boolean(draft);
             editButton.disabled = !canEdit();
+            restoreButton.hidden = Boolean(draft);
+            restoreButton.disabled = !canEdit() || busy();
+            restoreButton.textContent = saving ? '回復中…' : '回復預設';
             query('.settings-badge').hidden = !draft;
             query('.settings-footer').hidden = !draft;
             const changed = dirty();
@@ -224,7 +231,7 @@
             draft = { baseRevision: snapshot.settingsRevision, original: {} };
             for (const type of types) {
                 draft.original[type] = copy(snapshot[type]);
-                draft[type] = snapshot[type].map(item => ({ id: ++serial, name: item.name }));
+                draft[type] = snapshot[type].map(item => ({ id: ++serial, optionId: item.optionId, name: item.name }));
             }
             undo = {};
             errors = [];
@@ -256,17 +263,29 @@
             render();
             try {
                 const result = await submit(payload);
-                snapshot = { ...snapshot, ...result.settings };
+                if (result.settings.settingsRevision >= snapshot.settingsRevision) snapshot = { ...snapshot, ...result.settings };
                 draft = null;
                 undo = {};
                 errors = [];
-                savedMessage = '設定已儲存，所有玩家已同步更新。';
+                savedMessage = result.persistenceWarning || '設定已儲存，所有玩家已同步更新。';
             } catch (error) {
                 notice = error.message || '儲存失敗，草稿仍保留，請稍後再試。';
             } finally {
                 saving = false;
                 render();
             }
+        });
+        restoreButton.addEventListener('click', async () => {
+            if (draft || !canEdit() || busy()) return;
+            saving = true;
+            notice = savedMessage = '';
+            render();
+            try {
+                const result = await submit({ ...rules.defaults(), baseRevision: snapshot.settingsRevision });
+                if (result.settings.settingsRevision >= snapshot.settingsRevision) snapshot = { ...snapshot, ...result.settings };
+                savedMessage = result.persistenceWarning || '已回復預設獎項與數量。';
+            } catch (error) { notice = error.message || '回復失敗，請稍後再試。'; }
+            finally { saving = false; render(); }
         });
         window.addEventListener('beforeunload', event => {
             if (!dirty()) return;

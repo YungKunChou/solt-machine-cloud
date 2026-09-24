@@ -30,7 +30,8 @@
         } catch { return false; }
     }
     window.LOTTERY_PLAYER_SESSION = Object.freeze({
-        prepare(roomId) {
+        prepare(roomId, activityId) {
+            if (activityId) roomId = roomId + ':' + activityId;
             if (memory.has(roomId)) return memory.get(roomId);
             try {
                 const raw = window.sessionStorage.getItem(participantKey(roomId));
@@ -48,7 +49,8 @@
             memory.delete(roomId);
             return null;
         },
-        markRemoved(roomId) {
+        markRemoved(roomId, activityId) {
+            if (activityId) roomId = roomId + ':' + activityId;
             const session = memory.get(roomId) || this.prepare(roomId);
             return session ? saveParticipant(roomId, { ...session, removed: true }) : false;
         }

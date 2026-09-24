@@ -67,8 +67,25 @@ test('blocked browser storage and invalid credentials fail gracefully', () => {
     for (const token of [null, '', 'short', {}, 'g'.repeat(64)]) assert.equal(session.save('room_a', token), false);
 });
 
-async function lobby({ response, blockStorage = false }) {
+test('participant identity is scoped to activity and removed flag survives reload within that activity', () => {
+    const storage = new Map(); const session = browser(storage).LOTTERY_PLAYER_SESSION;
+    const first = session.prepare('room_a', 'activity1'); session.markRemoved('room_a', 'activity1');
+    const reloaded = browser(storage).LOTTERY_PLAYER_SESSION;
+    assert.equal(reloaded.prepare('room_a', 'activity1').token, first.token);
+    assert.equal(reloaded.prepare('room_a', 'activity1').removed, true);
+    assert.notEqual(reloaded.prepare('room_a', 'activity2').token, first.token);
+    assert.equal(reloaded.prepare('room_a', 'activity2').removed, false);
+});
+
+async function lobby({ response, blockStorage = false, savedSettings = null }) {
     const window = browser();
+    window.LotteryProtocol = require('../game-protocol.js');
+    window.LotterySettingsRules = require('../settings-rules.js');
+    window.LotterySettingsStore = require('../settings-store.js');
+    const local = new Map();
+    window.localStorage = { getItem: key => local.get(key) ?? null, setItem: (key, value) => local.set(key, value) };
+    if (savedSettings) window.LotterySettingsStore.create(() => window.localStorage, window.LOTTERY_CONFIG.backendUrl).save(savedSettings);
+    const requests = [];
     window.location = { href: 'index.html' };
     if (blockStorage) window.sessionStorage.setItem = () => { throw Error('blocked'); };
     const button = { disabled: false, textContent: '', addEventListener(event, fn) { this.click = fn; } };
@@ -77,29 +94,38 @@ async function lobby({ response, blockStorage = false }) {
     for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
         if (!match[1].trim()) continue;
         vm.runInNewContext(match[1], { window, document: { getElementById: () => button },
-            fetch: async () => ({ json: async () => response }), alert: message => messages.push(message),
+            fetch: async (url, options) => { requests.push({ url, options }); return { json: async () => response }; }, alert: message => messages.push(message),
             console: { error() {} } });
     }
     button.click();
     await new Promise(resolve => setImmediate(resolve));
-    return { window, button, messages };
+    return { window, button, messages, requests };
 }
 
 test('lobby stores host credential before opening a room-only URL', async () => {
     const token = 'a'.repeat(64);
-    const result = await lobby({ response: { success: true, roomId: 'room_a', dealerToken: token } });
+    const result = await lobby({ response: { protocolVersion: 2, success: true, roomId: 'room_a', dealerToken: token } });
     assert.equal(result.window.LOTTERY_ROOM_SESSION.read('room_a'), token);
     assert.equal(result.window.location.href, 'slot-machine.html?room=room_a');
     assert.equal(result.messages.length, 0);
 });
 
 test('lobby explains stale backend and unavailable storage without opening an unusable host page', async () => {
-    const stale = await lobby({ response: { success: true, roomId: 'room_a' } });
+    const stale = await lobby({ response: { protocolVersion: 2, success: true, roomId: 'room_a' } });
     assert.equal(stale.window.location.href, 'index.html');
     assert.equal(stale.button.disabled, false);
     assert.match(stale.messages[0], /舊版/);
-    const blocked = await lobby({ response: { success: true, roomId: 'room_a', dealerToken: 'a'.repeat(64) }, blockStorage: true });
+    const blocked = await lobby({ response: { protocolVersion: 2, success: true, roomId: 'room_a', dealerToken: 'a'.repeat(64) }, blockStorage: true });
     assert.equal(blocked.window.location.href, 'index.html');
     assert.equal(blocked.button.disabled, false);
     assert.match(blocked.messages[0], /無法保存主持人身分/);
+});
+test('new activity request contains the browser latest settings, or defaults when none are saved', async () => {
+    const savedSettings = { prizes: [{ name: '自訂禮物' }], quantities: [{ name: '6' }, { name: '6' }] };
+    const response = { success: true, protocolVersion: 2, roomId: 'room_new', dealerToken: 'a'.repeat(64) };
+    const saved = await lobby({ response, savedSettings });
+    assert.deepEqual(JSON.parse(saved.requests[0].options.body).settings, savedSettings);
+    assert.equal(saved.requests[0].options.headers['Content-Type'], 'application/json');
+    const empty = await lobby({ response });
+    assert.deepEqual(JSON.parse(empty.requests[0].options.body).settings, require('../settings-rules.js').defaults());
 });

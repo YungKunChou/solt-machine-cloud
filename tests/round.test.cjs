@@ -1,179 +1,133 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const M = require('../reel-motion.js');
 const { roomFixture } = require('./helpers/room.cjs');
-
-function namedRoom() {
-    const f = roomFixture();
-    f.player.send('setPlayerName', { roomId: f.roomId, name: '  小明  ' });
-    return f;
-}
-function drawBoth(f) {
+test('manual stopping creates one immutable plan, hides result until plan, and completes without client acknowledgement', () => {
+    const f = roomFixture(); const start = f.start();
+    assert.equal(start.success, true); assert.equal(start.result, undefined);
+    const plan = f.state.round.reels.prize; const calls = f.randomCalls;
+    f.player.send('startReel', { type: 'prize' }); assert.equal(f.randomCalls, calls);
+    const stop = { type: 'prize', roundId: f.state.round.id };
+    f.player.send('stopReel', stop);
+    assert.equal(f.state.round.reels.prize.stop.brakeAt, plan.startAt + 500);
+    assert.equal(f.state.round.reels.prize.stop.source, 'manual');
+    const locked = f.state.round.reels.prize;
+    f.advance(1000); f.player.send('stopReel', stop); assert.deepEqual(f.state.round.reels.prize, locked);
+    f.player.send('startReel', { type: 'quantity', roundId: stop.roundId });
+    f.player.send('stopReel', { ...stop, type: 'quantity' });
+    const end = Math.max(...Object.values(f.state.round.reels).map(p => p.stop.stopAt));
+    f.advance(end - f.now - 1); assert.equal(f.state.winners.length, 0);
+    f.advance(1); assert.equal(f.state.winners.length, 1); assert.equal(f.state.round, null);
+    const winner = f.state.winners[0];
     for (const type of ['prize', 'quantity']) {
-        assert.equal(f.player.send('spin', { roomId: f.roomId, type }).success, true);
+        const p = f.state.lastRound.reels[type]; const q = M.position(p, f.now);
+        assert.equal(p.order[M.mod(q, p.order.length)].optionId, winner[type + 'OptionId']);
     }
-    return f.state.currentTurnData.id;
-}
-function stop(f, turnId, type) {
-    return f.player.send('reelStopped', { roomId: f.roomId, turnId, type });
-}
-function complete(f, turnId) {
-    return f.player.send('turnComplete', { roomId: f.roomId, turnId });
-}
-
-for (const order of [['prize', 'quantity'], ['quantity', 'prize']]) {
-    test(`waits for both reels to stop (${order.join(' then ')}) and records exactly one winner`, () => {
-        const f = namedRoom();
-        const next = f.client('next');
-        next.send('joinRoom', f.roomId);
-        const turnId = drawBoth(f);
-        assert.equal(complete(f, turnId).success, false);
-        assert.equal(stop(f, turnId, order[0]).success, true);
-        assert.equal(complete(f, turnId).success, false);
-        assert.equal(f.state.winners.length, 0);
-        assert.equal(f.state.queue[0], 'player');
-        assert.equal(stop(f, turnId, order[1]).success, true);
-        assert.equal(complete(f, turnId).success, true);
-        assert.equal(complete(f, turnId).success, true);
-        assert.equal(f.state.winners.length, 1);
-        assert.equal(f.state.winners[0].name, '小明');
-        assert.equal(f.state.queue[0], 'next');
-        assert.equal(f.state.currentTurnData.id, null);
-        assert.equal(f.animations.filter(e => e.data.action === 'winner').length, 1);
-    });
-}
-
-test('stopping the first reel before drawing the second preserves its result', () => {
-    const f = namedRoom();
-    const first = f.player.send('spin', { roomId: f.roomId, type: 'prize' });
-    assert.equal(stop(f, first.turnId, 'quantity').success, false);
-    stop(f, first.turnId, 'prize');
-    assert.equal(complete(f, first.turnId).success, false);
-    const second = f.player.send('spin', { roomId: f.roomId, type: 'quantity' });
-    assert.equal(second.turnId, first.turnId);
-    assert.equal(f.state.currentTurnData.prize, first.result);
-    stop(f, second.turnId, 'quantity');
-    assert.equal(complete(f, second.turnId).success, true);
+    f.advance(20000); assert.equal(f.state.winners.length, 1);
 });
-
-test('repeated spin requests never consume randomness or replace either result', () => {
-    const f = namedRoom();
-    const turnId = drawBoth(f);
-    const initial = JSON.stringify(f.state.currentTurnData);
-    const draws = f.randomCalls;
-    for (let i = 0; i < 5; i++) {
-        for (const type of ['prize', 'quantity']) {
-            const result = f.player.send('spin', { roomId: f.roomId, type, playerName: '假名字' });
-            assert.equal(result.turnId, turnId);
-            assert.equal(result.result, f.state.currentTurnData[type]);
-        }
-    }
-    assert.equal(f.randomCalls, draws);
-    assert.equal(JSON.stringify(f.state.currentTurnData), initial);
+test('one reel plus player and host disconnect still auto-starts remaining reel and settles once', () => {
+    const f = roomFixture(); f.start(); const startAt = f.state.round.reels.prize.startAt;
+    f.player.send('disconnect'); f.dealer.send('disconnect');
+    f.advance(4250); assert.equal(f.state.round.reels.prize.stop.brakeAt, startAt + 4250);
+    f.advance(6000); assert.equal(f.state.round.reels.quantity.startAt, startAt + 10250);
+    f.advance(10000); assert.equal(f.state.winners.length, 1);
+    const host = f.client('host'); const result = host.join({ dealerToken: f.dealerToken });
+    assert.equal(result.snapshot.winners.length, 1); assert.equal(result.snapshot.lastRound.completedAt !== null, true);
 });
-
-test('unnamed, non-current, dealer and malformed spin requests do not start a round', () => {
-    const f = roomFixture();
-    const next = f.client('next');
-    next.send('joinRoom', f.roomId);
-    next.send('setPlayerName', { roomId: f.roomId, name: '下一位' });
-    for (const client of [f.player, f.dealer, next]) {
-        assert.equal(client.send('spin', { roomId: f.roomId, type: 'prize', playerName: '冒名' }).success, false);
-    }
-    f.player.send('setPlayerName', { roomId: f.roomId, name: '小明' });
-    for (const type of [null, 'stopped', '__proto__', 'invalid']) {
-        assert.equal(f.player.send('spin', { roomId: f.roomId, type }).success, false);
-    }
-    assert.equal(f.player.send('spin', null).success, false);
-    assert.equal(f.player.send('spin', { roomId: '__proto__', type: 'prize' }).success, false);
-    assert.equal(f.state.currentTurnData.id, null);
+test('expired deadline is applied before manual stop even when timer has not run', () => {
+    const f = roomFixture(); f.start(); const p = f.state.round.reels.prize;
+    f.advance(6000, false);
+    f.player.send('stopReel', { type: 'prize', roundId: f.state.round.id });
+    assert.equal(f.state.round.reels.prize.stop.brakeAt, p.autoStopDueAt + 250);
+    assert.equal(f.state.round.reels.prize.stop.source, 'auto');
 });
-
-test('server uses registered name and locks it throughout the round', () => {
-    const f = namedRoom();
-    const first = f.player.send('spin', { roomId: f.roomId, type: 'prize', playerName: '冒名' });
-    f.player.send('setPlayerName', { roomId: f.roomId, name: '新名字' });
-    assert.equal(f.state.players.player.name, '小明');
-    assert.equal(f.player.events.at(-1).event, 'nameError');
-    f.player.send('spin', { roomId: f.roomId, type: 'quantity', playerName: '另一個名字' });
-    for (const type of ['prize', 'quantity']) stop(f, first.turnId, type);
-    complete(f, first.turnId);
-    assert.equal(f.state.winners[0].name, '小明');
-    assert.equal(f.state.winners[0].playerId, 'player');
+test('overdue complete recovery advances all phases from their original logical deadlines', () => {
+    const f = roomFixture(); f.start(); const startAt = f.state.round.reels.prize.startAt;
+    f.advance(60000, false);
+    const snapshot = f.dealer.send('getSnapshot').snapshot;
+    assert.equal(snapshot.round, null); assert.equal(snapshot.winners.length, 1);
+    assert.equal(snapshot.lastRound.reels.quantity.startAt, startAt + 10250);
+    assert.ok(snapshot.lastRound.completedAt < f.now);
 });
-
-test('name validation rejects malformed/duplicate names but accepts own unchanged name', () => {
-    const f = namedRoom();
-    for (const name of [null, {}, '', '   ', '字'.repeat(81)]) {
-        f.player.send('setPlayerName', { roomId: f.roomId, name });
-        assert.equal(f.player.events.at(-1).event, 'nameError');
-        assert.equal(f.state.players.player.name, '小明');
-    }
-    f.player.send('setPlayerName', null);
-    const count = f.player.events.length;
-    f.player.send('setPlayerName', { roomId: f.roomId, name: ' 小明 ' });
-    assert.equal(f.player.events.length, count);
-    const next = f.client('next');
-    next.send('joinRoom', f.roomId);
-    next.send('setPlayerName', { roomId: f.roomId, name: ' 小明 ' });
-    assert.equal(next.events.at(-1).event, 'nameError');
-    assert.equal(f.state.players.next.name, null);
+test('unrelated joins and stale timer callbacks do not cancel or repeat scheduled completion', () => {
+    const f = roomFixture(); f.start(); const stale = [...f.timers.values()][0].fn;
+    f.player.send('stopReel', { type: 'prize', roundId: f.state.round.id });
+    const before = f.state.round.reels.prize; stale(); assert.deepEqual(f.state.round.reels.prize, before);
+    f.client('extra').join(); f.advance(20000); assert.equal(f.state.winners.length, 1);
+    stale(); assert.equal(f.state.winners.length, 1);
 });
-
-test('winner cannot evade the once-only rule by renaming and rejoining on the same connection', () => {
-    const f = namedRoom();
-    const turnId = drawBoth(f);
-    for (const type of ['prize', 'quantity']) stop(f, turnId, type);
-    complete(f, turnId);
-    f.player.send('joinRoom', f.roomId);
-    f.player.send('setPlayerName', { roomId: f.roomId, name: '另一名字' });
-    assert.equal(f.player.send('spin', { roomId: f.roomId, type: 'prize' }).success, false);
+test('operation replay returns original confirmation without repeating changes even after newer state', () => {
+    const f = roomFixture(); f.start(); const payload = { operationId: 'same-stop-0001', type: 'prize', roundId: f.state.round.id };
+    const first = f.player.send('stopReel', payload); f.client('extra').join();
+    const second = f.player.send('stopReel', payload);
+    assert.deepEqual(second, first); assert.ok(f.state.stateVersion > second.snapshot.stateVersion);
+    assert.equal(f.player.send('startReel', payload).success, false);
+    f.advance(20000); assert.deepEqual(f.player.send('stopReel', payload), first);
     assert.equal(f.state.winners.length, 1);
-    assert.equal(f.state.currentTurnData.id, null);
+});
+test('legacy events and stale or unauthorized round commands cannot alter authoritative playback', () => {
+    const f = roomFixture(); f.start(); const before = JSON.stringify(f.state);
+    for (const event of ['spin', 'turnComplete', 'reelStopped', 'broadcastAnimation', 'updatePrizes', 'updateQuantities']) assert.equal(f.player.send(event, {}).success, false);
+    assert.equal(f.player.send('stopReel', { type: 'prize', roundId: 99 }).success, false);
+    assert.equal(f.dealer.send('stopReel', { type: 'prize', roundId: 1 }).success, false);
+    assert.equal(f.player.send('startReel', { type: 'missing' }).success, false);
+    assert.equal(JSON.stringify(f.state), before);
+});
+test('names require confirmation, reject duplicates and cannot change during an established round', () => {
+    const f = roomFixture(); assert.equal(f.player.send('startReel', { type: 'prize' }).success, false);
+    f.start(); assert.equal(f.player.send('setPlayerName', { name: '改名' }).success, false);
+    const second = f.client('second'); second.join(); assert.equal(second.send('setPlayerName', { name: '小明' }).success, false);
+    f.advance(20000); assert.equal(second.send('setPlayerName', { name: '小明' }).success, false);
+});
+for (let n = 1; n <= 10; n++) test(`end-to-end round with ${n} prize rows and ${11 - n} quantity rows preserves duplicate identity`, () => {
+    const f = roomFixture();
+    assert.equal(f.dealer.send('updateSettings', { baseRevision: 0,
+        prizes: Array.from({ length: n }, () => ({ name: '同名獎品' })),
+        quantities: Array.from({ length: 11 - n }, () => ({ name: '2' })) }).success, true);
+    f.start(); f.player.send('startReel', { type: 'quantity', roundId: f.state.round.id });
+    if (n % 2) f.player.send('stopReel', { type: 'quantity', roundId: f.state.round.id });
+    f.advance(20000);
+    assert.equal(f.state.winners.length, 1);
+    for (const type of ['prize', 'quantity']) {
+        const p = f.state.lastRound.reels[type];
+        assert.equal(new Set(p.order.map(x => x.optionId)).size, p.order.length);
+        assert.equal(p.order[M.mod(M.position(p, f.now), p.order.length)].optionId, f.state.winners[0][type + 'OptionId']);
+    }
 });
 
-test('registered winner name remains blocked after disconnecting', () => {
-    const f = namedRoom();
-    const turnId = drawBoth(f);
-    for (const type of ['prize', 'quantity']) stop(f, turnId, type);
-    complete(f, turnId);
-    f.player.send('disconnect');
-    const returning = f.client('returning');
-    returning.send('joinRoom', f.roomId);
-    returning.send('setPlayerName', { roomId: f.roomId, name: ' 小明 ' });
-    assert.equal(returning.send('spin', { roomId: f.roomId, type: 'prize', playerName: '假名字' }).success, false);
+test('successive rounds keep order and both reel origins, including the unstarted reel and automatic start', () => {
+    const f = roomFixture();
+    for (let turn = 0; turn < 4; turn++) {
+        const client = turn === 0 ? f.player : f.client('player' + turn);
+        if (turn) client.join();
+        client.send('setPlayerName', { name: '玩家' + turn });
+        const previous = f.state.lastRound;
+        const first = turn % 2 ? 'quantity' : 'prize';
+        const second = first === 'prize' ? 'quantity' : 'prize';
+        const draws = f.randomCalls;
+        assert.equal(client.send('startReel', { type: first }).success, true);
+        assert.equal(f.randomCalls, draws + 1); // Drawing does not shuffle or consume extra random choices.
+        for (const type of ['prize', 'quantity']) {
+            const source = type === 'prize' ? f.state.prizes : f.state.quantities;
+            const origin = previous ? M.mod(previous.reels[type].stop.target, source.length) : 0;
+            assert.equal(f.state.round.initialPositions[type], origin);
+            if (type === first) {
+                assert.deepEqual(f.state.round.reels[type].order, source);
+                assert.equal(M.position(f.state.round.reels[type], f.now), origin);
+            }
+        }
+        assert.equal(f.state.round.reels[second], null);
+        const origin = f.state.round.initialPositions[second];
+        f.advance(11000);
+        assert.equal(f.state.round.reels[second].startPosition, origin);
+        f.advance(10000); assert.equal(f.state.winners.length, turn + 1);
+    }
 });
-
-test('other players, old rounds and legacy completion events cannot end the current round', () => {
-    const f = namedRoom();
-    const next = f.client('next');
-    next.send('joinRoom', f.roomId);
-    next.send('setPlayerName', { roomId: f.roomId, name: '下一位' });
-    const oldId = drawBoth(f);
-    assert.equal(next.send('reelStopped', { roomId: f.roomId, turnId: oldId, type: 'prize' }).success, false);
-    f.player.send('disconnect');
-    for (const type of ['prize', 'quantity']) next.send('spin', { roomId: f.roomId, type });
-    const newId = f.state.currentTurnData.id;
-    assert.notEqual(newId, oldId);
-    assert.equal(stop(f, oldId, 'prize').success, false);
-    assert.equal(next.send('reelStopped', { roomId: f.roomId, turnId: oldId, type: 'prize' }).success, false);
-    assert.equal(next.send('turnComplete', { roomId: f.roomId }).success, false);
-    assert.equal(next.send('turnComplete', { roomId: f.roomId, turnId: oldId }).success, false);
-    assert.equal(next.send('turnComplete', null).success, false);
-    assert.equal(f.state.winners.length, 0);
-    assert.equal(f.state.currentTurnData.stopped.prize, false);
-});
-
-test('animation messages use canonical identity/result and cannot be forged by spectators', () => {
-    const f = namedRoom();
-    const turnId = drawBoth(f);
-    const payload = { roomId: f.roomId, turnId, type: 'prize', action: 'stopSpin',
-        playerId: 'fake', playerName: '冒名', finalResult: '假獎品' };
-    f.dealer.send('broadcastAnimation', payload);
-    assert.equal(f.animations.length, 0);
-    f.player.send('broadcastAnimation', payload);
-    assert.equal(f.animations[0].data.playerId, 'player');
-    assert.equal(f.animations[0].data.playerName, '小明');
-    assert.equal(f.animations[0].data.finalResult, f.state.currentTurnData.prize);
-    f.player.send('broadcastAnimation', { ...payload, action: 'winner' });
-    assert.equal(f.animations.length, 1);
+test('settings revision change resets the next origin to the newly displayed settings, never to a removed winner', () => {
+    const f = roomFixture(); f.start(); f.advance(20000);
+    assert.equal(f.dealer.send('updateSettings', { baseRevision: 0, prizes: [{ name: '新獎品' }], quantities: [{ name: '9' }] }).success, true);
+    const next = f.client('next'); next.join(); next.send('setPlayerName', { name: '下一位' });
+    next.send('startReel', { type: 'quantity' });
+    assert.deepEqual(f.state.round.initialPositions, { prize: 0, quantity: 0 });
+    assert.deepEqual(f.state.round.reels.quantity.order, f.state.quantities);
 });

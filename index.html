@@ -120,6 +120,9 @@
 
     <script src="config.js"></script>
     <script src="room-session.js"></script>
+    <script src="game-protocol.js"></script>
+    <script src="settings-rules.js"></script>
+    <script src="settings-store.js"></script>
     <script src="history-store.js"></script>
     <script src="history-ui.js"></script>
     <script>
@@ -131,11 +134,13 @@
             createBtn.disabled = true;
             createBtn.textContent = '建立中...';
 
-            fetch(backendUrl + '/create-room', { method: 'POST' })
+            const savedSettings = window.LotterySettingsStore.create(() => window.localStorage, backendUrl).read();
+            fetch(backendUrl + '/create-room', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: savedSettings || window.LotterySettingsRules.defaults() }) })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        if (!data.dealerToken) {
+                        if (!data.dealerToken || !window.LotteryProtocol.compatible(data.protocolVersion)) {
                             throw new Error('本機或雲端服務仍是舊版，請先更新後端，再重新建立房間。');
                         }
                         if (!window.LOTTERY_ROOM_SESSION.save(data.roomId, data.dealerToken)) {
@@ -144,7 +149,7 @@
                         // 成功後，跳轉到您的遊戲頁面(slot-machine.html)，並附上包廂ID
                         window.location.href = `slot-machine.html?room=${data.roomId}`;
                     } else {
-                        alert('建立包廂失敗！請稍後再試。');
+                        alert(data.message || '建立包廂失敗！請稍後再試。');
                         createBtn.disabled = false;
                         createBtn.textContent = '請進VIP包廂';
                     }

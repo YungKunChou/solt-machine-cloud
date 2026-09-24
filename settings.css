@@ -4,6 +4,7 @@
 #prize-management h2, #lottery-area > h2 { font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.5; }
 #prize-management h2 { padding: 0; border: 0; margin: 0; }
 .settings-heading-title { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.settings-heading-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .settings-badge { color: #766b5d; background: #ede9e3; padding: 4px 12px; border-radius: 5px; font-size: 15px; font-weight: 600; }
 .settings-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
 .settings-column { min-width: 0; }
@@ -17,6 +18,7 @@
 .settings-button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 6px; border: 1px solid transparent; background: var(--settings-primary); color: #fff; white-space: nowrap; font-size: 15px !important; min-height: 42px; }
 .settings-button:hover:not(:disabled) { filter: brightness(.94); }
 .settings-button.secondary { background: #efefef; color: #444; }
+.settings-button.restore-defaults { background: #edf0ea; color: #596451; border-color: #cbd2c4; }
 .settings-button:disabled { background: #efefef; color: #979797; cursor: not-allowed !important; }
 .settings-icon { width: 18px; height: 18px; filter: brightness(0) invert(1); }
 .settings-button:disabled .settings-icon { filter: none; opacity: .4; }
@@ -56,7 +58,7 @@
     .settings-footer { margin: 24px -18px 0; padding: 16px 18px; }
 }
 @media (max-width: 480px) {
-    .settings-heading { align-items: flex-start; }
+    .settings-heading { align-items: flex-start; flex-wrap: wrap; }
     .settings-heading-title { gap: 8px; }
     .settings-column-top { align-items: flex-start; gap: 10px; }
     .settings-footer { flex-direction: column; align-items: stretch; gap: 10px; }

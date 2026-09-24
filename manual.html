@@ -147,7 +147,7 @@
                         <div class="flex items-center justify-center">
                             <div class="bg-[#2c2c54] p-4 rounded-lg shadow-lg w-full text-center border border-gray-600">
                                 <div class="font-bold text-lg">⑤ 拉霸結果上傳光榮榜</div>
-                                <div class="text-sm text-gray-400">遊戲結束後，成績被儲存至資料庫</div>
+                                <div class="text-sm text-gray-400">回合由伺服器完成並入榜，莊家連線時保存至此瀏覽器</div>
                             </div>
                         </div>
                     </div>
@@ -231,16 +231,16 @@
                     <div>
                         <h3 class="font-bold text-xl mb-2 text-[#3498db]">A. 即時賽況轉播</h3>
                         <p class="text-gray-300">
-                           在遊戲進行中，伺服器會不斷發送即時的賽況更新，例如「玩家A的滾輪停在櫻桃、檸檬、BAR」。這讓所有觀眾的畫面都能與玩家同步，享受零時差的觀戰體驗。
+                           莊家、玩家與觀眾使用相同的滾輪排列、播放時間及停止計畫。各欄最多 10 個選項，結果在啟動時由後端鎖定。每輪開始 4 秒後排定自動減速；第一輪開始 10 秒後，未操作的另一輪會自動啟動。已成立回合不因抽獎者離線取消，重連後恢復目前進度。網路與裝置仍會造成播放時間差。
                         </p>
                     </div>
                 </div>
                 <div class="bg-[#2c2c54]/80 p-6 rounded-lg shadow-lg border border-gray-700/50 flex items-center gap-6">
                      <svg class="w-16 h-16 text-[#fc4a1a] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                     <div>
-                        <h3 class="font-bold text-xl mb-2 text-[#fc4a1a]">B. 光榮榜永久紀錄</h3>
+                        <h3 class="font-bold text-xl mb-2 text-[#fc4a1a]">B. 光榮榜與本機歷史</h3>
                         <p class="text-gray-300">
-                            遊戲結束後，系統會將玩家的姓名、分數、中獎組合與遊玩時間等輝煌戰績，永久保存在雲端資料庫的「光榮榜」中。
+                            光榮榜記錄姓名、獎項與數量；莊家收到第一筆結果後，才將活動快照保存到此瀏覽器的 Local Storage。VIP 首頁可查看歷史活動。這不是雲端資料庫，後端重啟無法恢復原房間；重要名單請另存 CSV。莊家離線期間的結果須在重連收到後才有機會保存。
                         </p>
                     </div>
                 </div>

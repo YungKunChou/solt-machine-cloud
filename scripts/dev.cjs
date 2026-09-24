@@ -6,6 +6,7 @@ const { fork, spawn } = require('node:child_process');
 const readline = require('node:readline');
 const net = require('node:net');
 const { createHash } = require('node:crypto');
+const { backendReady } = require('./backend-ready.cjs');
 
 const root = path.resolve(__dirname, '..');
 const website = 'http://127.0.0.1:8080';
@@ -21,7 +22,9 @@ const publicFiles = new Map([
     ['history-ui.js', 'text/javascript; charset=utf-8'],
     ['history.css', 'text/css; charset=utf-8'],
     ['settings-rules.js', 'text/javascript; charset=utf-8'],
+    ['settings-store.js', 'text/javascript; charset=utf-8'],
     ['settings-editor.js', 'text/javascript; charset=utf-8'],
+    ...['game-protocol.js', 'reel-motion.js', 'server-clock.js', 'reel-player.js', 'game-client.js', 'game-music.js'].map(file => [file, 'text/javascript; charset=utf-8']),
     ['settings.css', 'text/css; charset=utf-8'],
     ['queue.css', 'text/css; charset=utf-8'],
     ['assets/icons/plus.svg', 'image/svg+xml'],
@@ -155,9 +158,7 @@ async function startBackend() {
     const deadline = Date.now() + 15000;
     while (!stopping && Date.now() < deadline) {
         try {
-            const response = await fetch('http://127.0.0.1:3001/', { signal: AbortSignal.timeout(1000) });
-            const body = await response.text();
-            if (response.ok && body.includes('Game server with animation sync is running.')) {
+            if (await backendReady('http://127.0.0.1:3001')) {
                 if (stopping || backend.exitCode !== null) return;
                 ready = true;
                 console.log('本機前後端已就緒：' + website);

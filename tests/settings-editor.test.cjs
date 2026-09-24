@@ -79,7 +79,7 @@ function fixture(submit) {
     const rows = type => q(`#${type}-settings-rows`).children;
     const names = type => rows(type).map(row => row.querySelector('.settings-input')?.value ?? row.querySelector('.settings-value').textContent);
     const column = type => root.querySelectorAll('.settings-column')[type === 'prizes' ? 0 : 1];
-    return { root, sent, q, rows, names, column, edit: () => q('#edit-settings-btn').click(),
+    return { root, sent, q, rows, names, column, editor, edit: () => q('#edit-settings-btn').click(),
         remove: (type, index) => rows(type)[index].querySelector('.settings-remove').click() };
 }
 
@@ -143,4 +143,31 @@ test('pending saves lock row deletion, add and undo; failed saves retain the dra
     assert.ok(f.rows('prizes').every(row => !row.querySelector('.settings-remove').disabled));
     f.column('prizes').querySelector('.settings-link').click();
     assert.deepEqual(f.names('prizes'), ['咖啡', '茶', '禮券']);
+});
+test('restore defaults sends both columns together and updates displayed settings after success', async () => {
+    const f = fixture();
+    assert.equal(f.q('.settings-heading-actions').querySelectorAll('button')[1].id, 'restore-settings-btn');
+    await f.q('#restore-settings-btn').click();
+    assert.deepEqual(f.sent, [{ ...rules.defaults(), baseRevision: 0 }]);
+    assert.deepEqual(f.names('prizes'), rules.defaults().prizes.map(x => x.name));
+    assert.deepEqual(f.names('quantities'), ['1', '2', '3']);
+    assert.match(f.q('.settings-notice').textContent, /已回復預設/);
+});
+test('restore is hidden during draft edits and disabled during active round, disconnect or pending save', async () => {
+    let reject;
+    const f = fixture(() => new Promise((resolve, fail) => { reject = fail; }));
+    f.edit(); assert.equal(f.q('#restore-settings-btn').hidden, true);
+    await f.q('#restore-settings-btn').events.click(); assert.equal(f.sent.length, 0);
+    f.q('#cancel-settings-btn').click();
+    const saved = { prizes: [{ name: '咖啡' }], quantities: [{ name: '5' }], settingsRevision: 0 };
+    f.editor.update({ ...saved, currentTurnData: { playerName: '小明' } }, true);
+    assert.equal(f.q('#restore-settings-btn').disabled, true);
+    f.editor.update(saved, true); f.editor.disconnect();
+    assert.equal(f.q('#restore-settings-btn').disabled, true);
+    f.editor.update(saved, true);
+    const restoring = f.q('#restore-settings-btn').click();
+    assert.equal(f.q('#restore-settings-btn').disabled, true); assert.equal(f.q('#edit-settings-btn').disabled, true);
+    reject(Error('連線失敗')); await restoring;
+    assert.deepEqual(f.names('quantities'), ['5']);
+    assert.match(f.q('.settings-notice').textContent, /連線失敗/);
 });
