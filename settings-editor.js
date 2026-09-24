@@ -21,7 +21,6 @@
                 <div class="settings-heading-title"><h2>獎項與數量設定</h2><span class="settings-badge" hidden>編輯中</span></div>
                 <button type="button" class="settings-button" id="edit-settings-btn">編輯設定</button>
             </div>
-            <p class="settings-subtitle">設定本次抽獎的獎項與數量</p>
             <div class="settings-columns"></div>
             <p class="settings-notice" role="status" aria-live="polite" hidden></p>
             <div class="settings-footer" hidden>
@@ -59,9 +58,7 @@
             column.innerHTML = `
                 <div class="settings-column-top">
                     <h3 id="${type}-heading">${type === 'prizes' ? '獎項項目' : '數量選項'}<span class="settings-count"></span></h3>
-                    <div class="settings-tools" hidden>
-                        <input type="checkbox" class="settings-checkbox settings-select-all" aria-label="全選${labels[type]}" title="全選${labels[type]}" hidden>
-                    </div>
+                    <div class="settings-tools"></div>
                 </div>
                 <div id="${type}-settings-rows"></div>
                 <p class="settings-list-message" hidden></p>
@@ -69,16 +66,7 @@
             const q = selector => column.querySelector(selector);
             const add = iconButton('新增', 'plus', '', () => addRow(type));
             add.setAttribute('aria-label', `新增${labels[type]}`);
-            const remove = iconButton('刪除選取', 'trash', 'danger', () => deleteRows(type));
-            remove.setAttribute('aria-label', `刪除選取${labels[type]}`);
-            q('.settings-tools').append(add, remove);
-            const all = q('.settings-select-all');
-            all.addEventListener('change', () => {
-                if (!draft || saving) return;
-                draft[type].forEach(row => { row.selected = all.checked; });
-                renderRows(type);
-                updateControls();
-            });
+            q('.settings-tools').append(add);
             q('.settings-link').addEventListener('click', () => {
                 if (!draft || saving || !undo[type]) return;
                 if (draft[type].length + undo[type].length > rules.MAX_ROWS) {
@@ -86,14 +74,14 @@
                     updateControls();
                     return;
                 }
-                for (const entry of undo[type]) draft[type].splice(Math.min(entry.index, draft[type].length), 0, { ...entry.row, selected: false });
+                for (const entry of undo[type]) draft[type].splice(Math.min(entry.index, draft[type].length), 0, { ...entry.row });
                 delete undo[type];
                 errors = [];
                 notice = '';
                 renderRows(type);
                 updateControls();
             });
-            columns[type] = { element: column, rows: q(`#${type}-settings-rows`), all, add, remove, query: q };
+            columns[type] = { element: column, rows: q(`#${type}-settings-rows`), add, query: q };
             query('.settings-columns').append(column);
         }
 
@@ -109,21 +97,7 @@
             const items = draft ? draft[type] : snapshot[type];
             items.forEach((item, index) => {
                 const row = document.createElement('div');
-                row.className = 'settings-row' + (item.selected ? ' selected' : '');
-                if (draft) {
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'settings-checkbox';
-                    checkbox.checked = item.selected;
-                    checkbox.disabled = saving;
-                    checkbox.setAttribute('aria-label', `選取${labels[type]}第 ${index + 1} 筆`);
-                    checkbox.addEventListener('change', () => {
-                        item.selected = checkbox.checked;
-                        row.classList.toggle('selected', item.selected);
-                        updateControls();
-                    });
-                    row.append(checkbox);
-                }
+                row.className = 'settings-row';
                 const number = document.createElement('span');
                 number.className = 'settings-number';
                 number.textContent = index + 1;
@@ -166,6 +140,16 @@
                     field.append(value);
                 }
                 row.append(field);
+                if (draft) {
+                    const remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.className = 'settings-remove';
+                    remove.textContent = 'X';
+                    remove.disabled = saving;
+                    remove.setAttribute('aria-label', `刪除${labels[type]}第 ${index + 1} 筆`);
+                    remove.addEventListener('click', () => deleteRow(type, item.id));
+                    row.append(remove);
+                }
                 rows.append(row);
             });
             const listIssue = errors.find(e => e.type === type && e.index === -1);
@@ -178,7 +162,6 @@
             editButton.hidden = Boolean(draft);
             editButton.disabled = !canEdit();
             query('.settings-badge').hidden = !draft;
-            query('.settings-subtitle').textContent = draft ? '直接修改欄位，完成後一次儲存' : '設定本次抽獎的獎項與數量';
             query('.settings-footer').hidden = !draft;
             const changed = dirty();
             const conflict = draft && snapshot.settingsRevision !== draft.baseRevision;
@@ -203,16 +186,8 @@
             for (const type of types) {
                 const c = columns[type];
                 const items = draft ? draft[type] : snapshot[type];
-                const selected = items.filter(row => row.selected).length;
                 c.query('.settings-count').textContent = `（${items.length} 筆）`;
-                c.query('.settings-tools').hidden = !draft;
-                c.all.hidden = !draft;
-                c.all.disabled = saving || items.length === 0;
-                c.all.checked = items.length > 0 && selected === items.length;
-                c.all.indeterminate = selected > 0 && selected < items.length;
                 c.add.disabled = saving || items.length >= rules.MAX_ROWS;
-                c.remove.disabled = saving || !selected;
-                c.remove.querySelector('span').textContent = selected ? `刪除選取（${selected}）` : '刪除選取';
                 c.query('.settings-undo').hidden = !draft || !undo[type];
                 c.query('.settings-undo span').textContent = undo[type] ? `已移除 ${undo[type].length} 筆` : '';
                 c.query('.settings-link').disabled = saving;
@@ -225,19 +200,19 @@
         }
         function addRow(type) {
             if (!draft || saving || draft[type].length >= rules.MAX_ROWS) return;
-            const item = { id: ++serial, name: '', selected: false };
+            const item = { id: ++serial, name: '' };
             draft[type].push(item);
             errors = errors.filter(e => e.type !== type || e.index !== -1);
             renderRows(type);
             updateControls();
             document.getElementById('setting-' + item.id).focus();
         }
-        function deleteRows(type) {
+        function deleteRow(type, id) {
             if (!draft || saving) return;
-            const removed = draft[type].map((row, index) => ({ row, index })).filter(entry => entry.row.selected);
-            if (!removed.length) return;
-            undo[type] = removed;
-            draft[type] = draft[type].filter(row => !row.selected);
+            const index = draft[type].findIndex(row => row.id === id);
+            if (index === -1) return;
+            undo[type] = [{ row: draft[type][index], index }];
+            draft[type].splice(index, 1);
             errors = [];
             notice = '';
             renderRows(type);
@@ -249,7 +224,7 @@
             draft = { baseRevision: snapshot.settingsRevision, original: {} };
             for (const type of types) {
                 draft.original[type] = copy(snapshot[type]);
-                draft[type] = snapshot[type].map(item => ({ id: ++serial, name: item.name, selected: false }));
+                draft[type] = snapshot[type].map(item => ({ id: ++serial, name: item.name }));
             }
             undo = {};
             errors = [];
