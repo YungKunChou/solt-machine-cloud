@@ -2,6 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>歡迎光臨 - 雲端拉霸遊戲</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,12 +59,17 @@
 
         /* 4. 設計與圖片融合的按鈕樣式 */
         #create-room-btn {
+            box-sizing: border-box;
+            width: 308px;
+            max-width: calc(100% - 40px);
+            min-height: 67.2px;
             font-family: 'Noto Sans TC', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 500;
-            padding: 1rem 2.5rem;
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+            padding: 0.7rem 1.05rem;
             cursor: pointer;
-            border-radius: 50px; /* 圓弧邊角更典雅 */
+            border-radius: 35px; /* 圓弧邊角更典雅 */
             border: 2px solid rgba(255, 223, 150, 0.6); /* 淡金色邊框 */
             
             color: white;
@@ -93,22 +99,29 @@
                 font-size: 2.5rem;
             }
             #create-room-btn {
-                font-size: 1.2rem;
-                padding: 0.8rem 2rem;
+                width: 224px;
+                min-height: 50.4px;
+                font-size: 1.225rem;
+                padding: 0.56rem 1.05rem;
             }
         }
     </style>
+    <link rel="stylesheet" href="history.css">
 </head>
 <body>
     <div class="content-wrapper">
         <div class="overlay-content">
             <h1>歡迎光臨🤩雲端拉霸</h1>
             <button id="create-room-btn">請進VIP包廂</button>
+            <button id="history-entry" class="history-entry" type="button">歷史活動（0）</button>
+            <p class="history-home-hint">歷史紀錄保存在此瀏覽器</p>
         </div>
     </div>
 
     <script src="config.js"></script>
     <script src="room-session.js"></script>
+    <script src="history-store.js"></script>
+    <script src="history-ui.js"></script>
     <script>
         const createBtn = document.getElementById('create-room-btn');
         // ↓↓↓ 請務必再次確認這是您部署後的後端伺服器網址 ↓↓↓

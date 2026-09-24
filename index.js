@@ -30,6 +30,8 @@ app.post('/create-room', (req, res) => {
     const roomId = `room_${Math.random().toString(36).substr(2, 6)}`;
     gameRooms[roomId] = {
         id: roomId,
+        activityId: randomBytes(16).toString('hex'),
+        createdAt: Date.now(),
         dealerId: null,
         players: {},
         queue: [],

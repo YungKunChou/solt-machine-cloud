@@ -49,6 +49,7 @@ function pageFixture(options = {}) {
     const pendingSpins = [];
     const pendingStops = [];
     const pendingJoins = [];
+    const archived = [];
     let savedToken = options.dealerToken || null;
     let deferStops = false;
     let completeReply = { success: true };
@@ -82,6 +83,7 @@ function pageFixture(options = {}) {
             LOTTERY_CONFIG: { backendUrl: 'local-only' }, location: { search: '?room=test', href: options.href || 'http://local/?room=test' },
             LOTTERY_ROOM_SESSION: { read: () => savedToken, remove: () => { savedToken = null; } },
             createLotterySettingsEditor: () => ({ update() {}, disconnect() {} }),
+            LOTTERY_HISTORY: { track: (state, dealer) => { if (dealer) archived.push(state); }, stop() {}, download() {} },
             getComputedStyle: () => ({ transform: 'none' })
         },
         io: () => socket, QRCode: function () {}, URLSearchParams, URL, Math: math,
@@ -97,7 +99,7 @@ function pageFixture(options = {}) {
     }
     update();
     return {
-        sent, element, handlers, pendingSpins, pendingStops, pendingJoins, update, timers, socket,
+        sent, element, handlers, pendingSpins, pendingStops, pendingJoins, update, timers, socket, archived,
         click(type) { element(type === 'prize' ? 'lever-left' : 'lever-right').fire('click'); },
         accept(type, turnId = 1) {
             const index = pendingSpins.findIndex(request => request.data.type === type);
@@ -116,6 +118,16 @@ function pageFixture(options = {}) {
         failCompletion() { completeReply = { success: false, message: '重試' }; }
     };
 }
+
+test('only confirmed host room updates are passed to automatic history saving', () => {
+    const f = pageFixture();
+    assert.equal(f.archived.length, 0);
+    f.update({ dealerId: 'player', winners: [{ name: '小明', prize: '咖啡', quantity: '2' }] });
+    assert.equal(f.archived.length, 1);
+    assert.equal(f.archived[0].winners.length, 1);
+    f.update({ dealerId: 'other-host' });
+    assert.equal(f.archived.length, 1);
+});
 
 for (const order of [['prize', 'quantity'], ['quantity', 'prize']]) {
     test(`page waits for both actual stop events (${order.join(' then ')})`, () => {

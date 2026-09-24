@@ -7,6 +7,9 @@
 
     <script src="config.js"></script>
     <script src="room-session.js"></script>
+    <script src="history-store.js"></script>
+    <script src="history-ui.js"></script>
+    <link rel="stylesheet" href="history.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
@@ -126,6 +129,10 @@
                 </a>
             </div>
             </header>
+        <div id="history-toolbar" class="history-toolbar" hidden>
+            <span id="history-save-status" class="history-save-status" role="status" aria-live="polite"></span>
+            <button id="history-game-entry" type="button">歷史活動</button>
+        </div>
         <div id="prize-management" class="section-container" style="display:none"></div>
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
@@ -313,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('dealerReplaced', (data) => {
             if (data?.roomId !== roomId) return;
             dealerReplaced = true;
+            window.LOTTERY_HISTORY.stop();
             window.LOTTERY_ROOM_SESSION.remove(roomId);
             socket.disconnect();
             drawStatus.textContent = '主持權已在另一個分頁恢復，請使用最新的主持人分頁。';
@@ -329,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
+            window.LOTTERY_HISTORY.track(roomState, amIDealer);
             const registeredName = roomState.players[myPlayerId]?.name || null;
             if (registeredName !== currentParticipantName) participantNameInput.value = registeredName || '';
             currentParticipantName = registeredName;
@@ -813,13 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
     leverRight.addEventListener('click', () => handleSpin('quantity'));
     exportCsvBtn.addEventListener('click', () => {
         if (winners.length === 0) return;
-        let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
-        csvContent += '得獎人,獎項,數量\n';
-        winners.forEach(row => { csvContent += `${row.name},${row.prize},${row.quantity}\n`; });
-        const link = document.createElement('a');
-        link.setAttribute('href', encodeURI(csvContent));
-        link.setAttribute('download', '雙滾輪得獎名單.csv');
-        link.click();
+        window.LOTTERY_HISTORY.download(winners);
     });
     document.getElementById('toggle-music-btn').addEventListener('click', () => {
         if (!player || !isMusicPlayerReady) {
