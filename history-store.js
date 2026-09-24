@@ -26,13 +26,17 @@
                 try {
                     const data = JSON.parse(raw);
                     if (!valid(data) || key(data.id) !== name) throw Error('invalid record');
-                    records.push({ ...data, raw });
+                    // Older versions also archived rooms before their first draw.
+                    if (data.winners.length) records.push({ ...data, raw });
                 } catch { damaged++; }
             }
             records.sort((a, b) => b.savedAt - a.savedAt || a.id.localeCompare(b.id));
             return { records, damaged };
         }
         function save(room) {
+            // Do not create an archive for settings-only or unfinished activities.
+            // A delayed empty snapshot must never erase an existing winner list.
+            if (Array.isArray(room.winners) && room.winners.length === 0) return null;
             if (typeof room.activityId !== 'string' || !Number.isFinite(room.createdAt)) {
                 throw Error('服務尚未支援活動保存，請更新並重新啟動後端，再建立新活動。');
             }

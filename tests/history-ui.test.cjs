@@ -7,7 +7,7 @@ const { randomUUID } = require('node:crypto');
 const History = require('../history-store.js');
 
 const flush = async () => { for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve)); };
-const room = (id, winners = []) => ({ activityId: id, id: 'room_' + id, createdAt: 1000,
+const room = (id, winners = [{ name: '原得獎人', prize: '咖啡', quantity: '2' }]) => ({ activityId: id, id: 'room_' + id, createdAt: 1000,
     settingsRevision: 0, prizes: [{ name: '<script>literal</script>' }], quantities: [{ name: '2' }], winners });
 
 function fixture(t, options = {}) {
@@ -78,10 +78,30 @@ test('history empty/list/detail views work, cancellation preserves records and l
 test('game page keeps automatic archiving without mounting history controls or a dialog', async t => {
     const f = fixture(t, { gamePage: true });
     assert.equal(f.dialog, undefined);
+    f.window.LOTTERY_HISTORY.track(room('game', []), true);
+    await flush();
+    assert.equal(f.localStorage.length, 0);
     f.window.LOTTERY_HISTORY.track(room('game'), true);
     await flush();
     assert.equal(f.store.list().records[0].id, 'game');
     assert.equal(f.element('history-save-status'), null);
+});
+
+test('history count excludes zero-result activities and appears after the first completed draw', async t => {
+    const f = fixture(t);
+    f.window.LOTTERY_HISTORY.track(room('new', []), true);
+    await flush();
+    await f.open();
+    assert.equal(f.element('history-entry').textContent, '歷史活動（0）');
+    assert.equal(f.element('history-save-status').textContent, '');
+    assert.match(f.dialog.textContent, /完成第一筆抽獎後/);
+    f.window.LOTTERY_HISTORY.track(room('new'), true);
+    await flush();
+    const record = f.store.list().records[0];
+    f.localStorage.setItem(f.store.prefix + 'legacy', JSON.stringify({ ...record, id: 'legacy', winners: [] }));
+    await f.open();
+    assert.equal(f.element('history-entry').textContent, '歷史活動（1）');
+    assert.equal(f.store.list().damaged, 0);
 });
 
 test('clear excludes a host in another tab, preserves credentials, and clears after host page closes', async t => {

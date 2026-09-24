@@ -44,7 +44,7 @@
             const record = store.save(current);
             if (status) {
                 status.dataset.error = 'false';
-                status.textContent = `已保存至此瀏覽器 · ${formatDate(record.savedAt)}`;
+                status.textContent = record ? `已保存至此瀏覽器 · ${formatDate(record.savedAt)}` : '';
             }
         } catch (error) {
             if (status) { status.dataset.error = 'true'; status.textContent = errorText(error); }
@@ -172,7 +172,7 @@
                 list.body.append(row);
             }
             body.append(list.t);
-        } else if (!error) body.append(node('p', '尚無歷史活動。建立活動後，主持人端會自動保存設定與得獎紀錄。', 'history-empty'));
+        } else if (!error) body.append(node('p', '尚無歷史活動。完成第一筆抽獎後，主持人端會自動保存設定與得獎紀錄。', 'history-empty'));
         dialog.append(node('p', '依最後儲存時間排序，最新活動在最上方。使用中的活動會保留。', 'history-footer'));
         refreshCount();
         if (focus) focusHeading(h2);

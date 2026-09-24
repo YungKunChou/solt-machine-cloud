@@ -8,8 +8,35 @@ function storage() {
         getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) };
 }
 const room = (id = 'one', overrides = {}) => ({ activityId: id, id: 'room_a', createdAt: 100,
-    settingsRevision: 0, prizes: [{ name: '咖啡' }], quantities: [{ name: '2' }], winners: [], ...overrides });
+    settingsRevision: 0, prizes: [{ name: '咖啡' }], quantities: [{ name: '2' }], winners: [winner], ...overrides });
 const winner = { name: '小明', prize: '咖啡', quantity: '2' };
+
+test('zero-result activities do not touch storage; first result creates an archive and delayed empty updates preserve it', () => {
+    const s = storage();
+    let accesses = 0;
+    const store = create(() => { accesses++; return s; }, 'local');
+    assert.equal(store.save(room('one', { winners: [] })), null);
+    assert.equal(accesses, 0);
+    assert.equal(s.length, 0);
+    store.save(room());
+    const saved = s.getItem(store.prefix + 'one');
+    store.save(room('one', { winners: [], settingsRevision: 9 }));
+    assert.equal(s.getItem(store.prefix + 'one'), saved);
+    assert.equal(store.list().records.length, 1);
+});
+
+test('legacy zero-result archives are excluded without deleting or marking them damaged', () => {
+    const s = storage();
+    const store = create(() => s, 'local');
+    const record = store.save(room());
+    const legacy = JSON.stringify({ ...record, id: 'empty', winners: [] });
+    s.setItem(store.prefix + 'empty', legacy);
+    assert.deepEqual(store.list().records.map(row => row.id), ['one']);
+    assert.equal(store.list().damaged, 0);
+    assert.equal(s.getItem(store.prefix + 'empty'), legacy);
+    store.save(room('empty'));
+    assert.equal(store.list().records.length, 2);
+});
 
 test('activities survive reload, stay separate even with reused room IDs, and contain no credentials', () => {
     const s = storage(); let now = 100;
@@ -37,7 +64,7 @@ test('clear only removes unchanged selected records and never other local or ses
     const s = storage(); const store = create(() => s, 'local');
     s.setItem('unrelated', 'keep'); s.setItem('lottery:dealer:local:room_a', 'token');
     store.save(room()); const snapshot = store.list().records[0];
-    store.save(room('one', { winners: [winner] }));
+    store.save(room('one', { winners: [winner, { ...winner, name: '小華' }] }));
     store.save(room('new'));
     assert.equal(store.removeUnchanged(snapshot), false);
     const latest = store.list().records.find(r => r.id === 'one');
@@ -55,7 +82,7 @@ test('damaged records are reported and preserved; unavailable/full storage does 
     store.save(room('two'));
     const original = s.getItem(store.prefix + 'two');
     s.setItem = () => { throw Object.assign(Error('full'), { name: 'QuotaExceededError' }); };
-    assert.throws(() => store.save(room('two', { winners: [winner] })), /full/);
+    assert.throws(() => store.save(room('two', { winners: [winner, { ...winner, name: '小華' }] })), /full/);
     assert.equal(s.getItem(store.prefix + 'two'), original);
     assert.throws(() => create(() => { throw Error('blocked'); }, 'local').list(), /blocked/);
 });
