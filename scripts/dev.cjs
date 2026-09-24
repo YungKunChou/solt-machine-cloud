@@ -16,6 +16,7 @@ const publicFiles = new Map([
     ['slot-machine.html', 'text/html; charset=utf-8'],
     ['manual.html', 'text/html; charset=utf-8'],
     ['config.js', 'text/javascript; charset=utf-8'],
+    ['room-session.js', 'text/javascript; charset=utf-8'],
     ['settings-rules.js', 'text/javascript; charset=utf-8'],
     ['settings-editor.js', 'text/javascript; charset=utf-8'],
     ['settings.css', 'text/css; charset=utf-8'],

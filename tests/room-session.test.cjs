@@ -1,0 +1,77 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const source = fs.readFileSync(path.join(__dirname, '../room-session.js'), 'utf8');
+
+function browser(storage = new Map(), backendUrl = 'http://127.0.0.1:3001') {
+    const window = {
+        LOTTERY_CONFIG: { backendUrl },
+        sessionStorage: { getItem: key => storage.get(key) || null,
+            setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
+    };
+    vm.runInNewContext(source, { window });
+    return window;
+}
+
+test('host credential survives a page reload and is isolated by tab, backend and room', () => {
+    const storage = new Map();
+    const first = browser(storage).LOTTERY_ROOM_SESSION;
+    const token = 'a'.repeat(64);
+    assert.equal(first.save('room_a', token), true);
+    assert.equal(browser(storage).LOTTERY_ROOM_SESSION.read('room_a'), token);
+    assert.equal(browser().LOTTERY_ROOM_SESSION.read('room_a'), null);
+    assert.equal(browser(storage, 'https://example.com').LOTTERY_ROOM_SESSION.read('room_a'), null);
+    assert.equal(first.read('room_b'), null);
+    first.remove('room_a');
+    assert.equal(first.read('room_a'), null);
+});
+
+test('blocked browser storage and invalid credentials fail gracefully', () => {
+    const window = { LOTTERY_CONFIG: { backendUrl: 'local-only' } };
+    Object.defineProperty(window, 'sessionStorage', { get() { throw Error('storage blocked'); } });
+    vm.runInNewContext(source, { window });
+    assert.equal(window.LOTTERY_ROOM_SESSION.read('room_a'), null);
+    assert.equal(window.LOTTERY_ROOM_SESSION.save('room_a', 'a'.repeat(64)), false);
+    assert.doesNotThrow(() => window.LOTTERY_ROOM_SESSION.remove('room_a'));
+    const session = browser().LOTTERY_ROOM_SESSION;
+    for (const token of [null, '', 'short', {}, 'g'.repeat(64)]) assert.equal(session.save('room_a', token), false);
+});
+
+async function lobby({ response, blockStorage = false }) {
+    const window = browser();
+    window.location = { href: 'index.html' };
+    if (blockStorage) window.sessionStorage.setItem = () => { throw Error('blocked'); };
+    const button = { disabled: false, textContent: '', addEventListener(event, fn) { this.click = fn; } };
+    const messages = [];
+    const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+    for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+        if (!match[1].trim()) continue;
+        vm.runInNewContext(match[1], { window, document: { getElementById: () => button },
+            fetch: async () => ({ json: async () => response }), alert: message => messages.push(message),
+            console: { error() {} } });
+    }
+    button.click();
+    await new Promise(resolve => setImmediate(resolve));
+    return { window, button, messages };
+}
+
+test('lobby stores host credential before opening a room-only URL', async () => {
+    const token = 'a'.repeat(64);
+    const result = await lobby({ response: { success: true, roomId: 'room_a', dealerToken: token } });
+    assert.equal(result.window.LOTTERY_ROOM_SESSION.read('room_a'), token);
+    assert.equal(result.window.location.href, 'slot-machine.html?room=room_a');
+    assert.equal(result.messages.length, 0);
+});
+
+test('lobby explains stale backend and unavailable storage without opening an unusable host page', async () => {
+    const stale = await lobby({ response: { success: true, roomId: 'room_a' } });
+    assert.equal(stale.window.location.href, 'index.html');
+    assert.equal(stale.button.disabled, false);
+    assert.match(stale.messages[0], /舊版/);
+    const blocked = await lobby({ response: { success: true, roomId: 'room_a', dealerToken: 'a'.repeat(64) }, blockStorage: true });
+    assert.equal(blocked.window.location.href, 'index.html');
+    assert.equal(blocked.button.disabled, false);
+    assert.match(blocked.messages[0], /無法保存主持人身分/);
+});

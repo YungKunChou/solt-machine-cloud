@@ -1,48 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const fs = require('node:fs');
-const path = require('node:path');
 const rules = require('../settings-rules.js');
-
-// Exercise public event handlers with isolated rooms; never touch the live service.
-function roomFixture() {
-    const routes = {};
-    let connect;
-    let currentState;
-    let broadcasts = 0;
-    const app = { use() {}, get() {}, post(route, handler) { routes[route] = handler; } };
-    class Server {
-        on(event, handler) { connect = handler; }
-        to() { return { emit(event, state) { currentState = state; broadcasts++; } }; }
-    }
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../index.js'), 'utf8'), {
-        require(name) { return {
-            express: () => app,
-            http: { createServer: () => ({ listen() {} }) },
-            'socket.io': { Server }, cors: () => () => {}, './settings-rules.js': rules
-        }[name]; },
-        process: { env: {} }, console: { log() {} }
-    });
-    let roomId;
-    routes['/create-room']({}, { json(data) { roomId = data.roomId; } });
-    function client(id) {
-        const handlers = {};
-        const events = [];
-        connect({ id, join() {}, on(event, callback) { handlers[event] = callback; },
-            emit(event, data) { events.push({ event, data }); }, to: () => ({ emit() {} }) });
-        return { events, send(event, data) {
-            let reply;
-            handlers[event](data, value => { reply = value; });
-            return reply;
-        } };
-    }
-    const dealer = client('dealer');
-    const player = client('player');
-    dealer.send('joinRoom', roomId);
-    player.send('joinRoom', roomId);
-    return { dealer, player, roomId, get state() { return currentState; }, get broadcasts() { return broadcasts; } };
-}
+const { roomFixture } = require('./helpers/room.cjs');
 function settings(f, overrides = {}) {
     return { roomId: f.roomId, baseRevision: f.state.settingsRevision,
         prizes: [{ name: '  新獎項  ' }], quantities: [{ name: '02' }, { name: '2' }], ...overrides };
@@ -83,6 +42,7 @@ test('stale versions cannot overwrite a newer save', () => {
 });
 test('settings are locked during an active round, including legacy edits', () => {
     const f = roomFixture();
+    f.player.send('setPlayerName', { roomId: f.roomId, name: '測試員' });
     f.player.send('spin', { roomId: f.roomId, type: 'prize', playerName: '測試員' });
     assert.equal(f.dealer.send('updateSettings', settings(f)).success, false);
     assert.equal(f.dealer.send('updatePrizes', settings(f)).success, false);
@@ -90,13 +50,17 @@ test('settings are locked during an active round, including legacy edits', () =>
 });
 test('round completion unlocks settings', () => {
     const f = roomFixture();
+    f.player.send('setPlayerName', { roomId: f.roomId, name: '測試員' });
     for (const type of ['prize', 'quantity']) f.player.send('spin', { roomId: f.roomId, type, playerName: '測試員' });
-    f.player.send('turnComplete', { roomId: f.roomId });
+    const turnId = f.state.currentTurnData.id;
+    for (const type of ['prize', 'quantity']) f.player.send('reelStopped', { roomId: f.roomId, turnId, type });
+    f.player.send('turnComplete', { roomId: f.roomId, turnId });
     assert.equal(f.state.winners.length, 1);
     assert.equal(f.dealer.send('updateSettings', settings(f)).success, true);
 });
 test('departure of the active player clears the abandoned round and settings lock', () => {
     const f = roomFixture();
+    f.player.send('setPlayerName', { roomId: f.roomId, name: '測試員' });
     f.player.send('spin', { roomId: f.roomId, type: 'prize', playerName: '測試員' });
     f.player.send('disconnect');
     assert.equal(f.state.currentTurnData.playerName, null);

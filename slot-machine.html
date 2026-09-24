@@ -6,6 +6,7 @@
     <title>雲端拉霸</title>
 
     <script src="config.js"></script>
+    <script src="room-session.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
@@ -198,7 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let myPlayerId = null;
     let currentTurnPlayerId = null;
     let currentParticipantName = null;
+    let activeTurnId = null;
+    let completionPending = false;
     let amIDealer = false;
+    let hasJoinedRoom = false;
+    let joinGeneration = 0;
+    let joinRetryTimeout = null;
+    let dealerReplaced = false;
     let isInitialRender = true; // 【新增】增加一個旗標來判斷是否為首次渲染
 
     // 滾輪狀態變數，與您「雙滾輪」設計完全同步
@@ -206,6 +213,18 @@ document.addEventListener('DOMContentLoaded', () => {
         prize: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false },
         quantity: { isSpinning: false, isStopping: false, spinEndTimeout: null, finalResult: null, hasBeenSpun: false }
     };
+
+    function resetLocalRound() {
+        activeTurnId = null;
+        completionPending = false;
+        for (const state of Object.values(reelStates)) {
+            clearTimeout(state.spinEndTimeout);
+            state.stopCleanup?.();
+            Object.assign(state, { isSpinning: false, isStopping: false, isRequesting: false,
+                finalResult: null, hasBeenSpun: false, hasStopped: false, stopConfirmed: false,
+                stopPending: false, isShowingResult: false });
+        }
+    }
     
     // --- 2. DOM 元件定義區 (來自您的原始碼，完整無缺) ---
     const participantNameInput = document.getElementById('participant-name');
@@ -223,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dealerShareInfo = document.getElementById('dealer-share-info');
     const currentPlayerIndicator = document.getElementById('current-player-indicator');
     const settingsEditor = window.createLotterySettingsEditor(prizeManagementSection, payload => new Promise((resolve, reject) => {
-        if (!socket?.connected) { reject(new Error('連線已中斷，草稿仍保留，請重新連線後再試。')); return; }
+        if (!socket?.connected || !hasJoinedRoom) { reject(new Error('連線已中斷，草稿仍保留，請重新連線後再試。')); return; }
         socket.timeout(6000).emit('updateSettings', { roomId, ...payload }, (error, result) => {
             if (error) reject(new Error('未收到儲存確認，草稿仍保留。請確認連線與後端版本後再試。'));
             else if (!result?.success) reject(new Error(result?.message || '儲存失敗，草稿仍保留。'));
@@ -245,18 +264,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         socket.on('connect', () => {
+            if (dealerReplaced) { socket.disconnect(); return; }
             myPlayerId = socket.id;
+            hasJoinedRoom = false;
+            const generation = ++joinGeneration;
+            clearTimeout(joinRetryTimeout);
             console.log('成功連接到遊戲大腦，我的ID是:', myPlayerId);
-            socket.emit('joinRoom', roomId);
+            drawStatus.textContent = '正在加入房間…';
+            const dealerToken = window.LOTTERY_ROOM_SESSION.read(roomId);
+            function join(attempt = 1) {
+                socket.timeout(6000).emit('joinRoom', { roomId, dealerToken }, (error, result) => {
+                    if (generation !== joinGeneration || !socket.connected || dealerReplaced) return;
+                    if (error && attempt < 3) {
+                        joinRetryTimeout = setTimeout(() => join(attempt + 1), 1000);
+                        return;
+                    }
+                    if (error || !result?.success) {
+                        settingsEditor.disconnect();
+                        drawStatus.textContent = result?.message || '未收到加入確認，請確認前後端已更新，再重新整理頁面。';
+                        return;
+                    }
+                    hasJoinedRoom = true;
+                });
+            }
+            join();
+            const shareUrl = new URL(window.location.href);
+            shareUrl.search = '';
+            shareUrl.hash = '';
+            shareUrl.searchParams.set('room', roomId);
             document.getElementById('qrcode').innerHTML = '';
-            roomUrlInput.value = window.location.href;
-            new QRCode(document.getElementById('qrcode'), window.location.href);
+            roomUrlInput.value = shareUrl.href;
+            new QRCode(document.getElementById('qrcode'), shareUrl.href);
         });
 
-        socket.on('disconnect', () => settingsEditor.disconnect());
+        socket.on('disconnect', () => {
+            ++joinGeneration;
+            clearTimeout(joinRetryTimeout);
+            hasJoinedRoom = false;
+            amIDealer = false;
+            settingsEditor.disconnect();
+            resetLocalRound();
+            currentParticipantName = null;
+            prizeManagementSection.style.display = 'none';
+            dealerShareInfo.style.display = 'none';
+            exportCsvBtn.style.display = 'none';
+            if (!dealerReplaced) drawStatus.textContent = '連線中斷，正在重新連線…';
+        });
+        socket.on('dealerReplaced', (data) => {
+            if (data?.roomId !== roomId) return;
+            dealerReplaced = true;
+            window.LOTTERY_ROOM_SESSION.remove(roomId);
+            socket.disconnect();
+            drawStatus.textContent = '主持權已在另一個分頁恢復，請使用最新的主持人分頁。';
+        });
         socket.on('connect_error', () => settingsEditor.disconnect());
         socket.on('updateRoomState', (roomState) => {
+            if (dealerReplaced) return;
             const turnChanged = currentTurnPlayerId !== roomState.queue[0];
+            if (turnChanged) resetLocalRound();
             const settingsChanged = JSON.stringify(prizes) !== JSON.stringify(roomState.prizes) || JSON.stringify(quantities) !== JSON.stringify(roomState.quantities);
             console.log("收到房間狀態更新:", roomState);
             prizes = roomState.prizes;
@@ -264,6 +329,9 @@ document.addEventListener('DOMContentLoaded', () => {
             winners = roomState.winners;
             currentTurnPlayerId = roomState.queue[0];
             amIDealer = (myPlayerId === roomState.dealerId);
+            const registeredName = roomState.players[myPlayerId]?.name || null;
+            if (registeredName !== currentParticipantName) participantNameInput.value = registeredName || '';
+            currentParticipantName = registeredName;
             settingsEditor.update(roomState, amIDealer);
 
             prizeManagementSection.style.display = amIDealer ? 'block' : 'none';
@@ -286,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 queueList.appendChild(li);
             });
             
-            participantNameInput.disabled = amIDealer;
+            participantNameInput.disabled = amIDealer || roomState.currentTurnData.playerId === myPlayerId;
             if (amIDealer) {
                 drawStatus.textContent = "這是莊家頁面，邀請玩家刷QR Code加入遊戲";
                 participantNameInput.placeholder = "您是莊家，不參加抽獎";
@@ -330,17 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         socket.on('nameError', (message) => {
             alert(message);
-            participantNameInput.value = '';
-            currentParticipantName = null;
+            participantNameInput.value = currentParticipantName || '';
             if (currentTurnPlayerId === myPlayerId) {
-                drawStatus.textContent = "輪到你了！請輸入姓名！";
-            }
-        });
-
-        socket.on('spinResult', (data) => {
-            console.log(`收到 ${data.type} 的秘密結果: ${data.result}`);
-            if (reelStates[data.type]) {
-                reelStates[data.type].finalResult = data.result;
+                drawStatus.textContent = currentParticipantName ? `已登記：${currentParticipantName}` : '輪到你了！請先輸入姓名！';
             }
         });
         socket.on('error', (msg) => alert('錯誤：' + msg));
@@ -460,52 +520,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkAndRecordWin() {
-        if (reelStates.prize.finalResult !== null && reelStates.quantity.finalResult !== null) {
-            socket.emit('turnComplete', { roomId });
-            reelStates.prize.finalResult = null;
-            reelStates.quantity.finalResult = null;
-            currentParticipantName = null;
-        }
+        if (completionPending || activeTurnId === null ||
+            !Object.values(reelStates).every(state => state.hasStopped && state.stopConfirmed &&
+                !state.isSpinning && !state.isStopping && state.finalResult !== null)) return;
+        const turnId = activeTurnId;
+        completionPending = true;
+        socket.timeout(6000).emit('turnComplete', { roomId, turnId }, (error, result) => {
+            if (error || !result?.success) {
+                if (activeTurnId === turnId) {
+                    completionPending = false;
+                    drawStatus.textContent = result?.message || '未收到完成確認，請再按拉桿重試。';
+                }
+                return;
+            }
+            slotWindow.classList.add('winner-flash');
+            setTimeout(() => {
+                slotWindow.classList.remove('winner-flash');
+                slotWindow.classList.remove('spectator-mode');
+            }, 4000);
+        });
     }
 
-     function finalizeSpin(type) {
-      const state = reelStates[type];
-      state.isSpinning = false;
-      state.isStopping = false;
-      if (reelStates.prize.finalResult && reelStates.quantity.finalResult) {
-          // 廣播給其他玩家看特效
-          socket.emit('broadcastAnimation', {
-              roomId,
-              action: 'winner',
-              playerId: myPlayerId
-          });
-        
-          // 【新增】自己本地端也要同步觸發特效
-          slotWindow.classList.add('winner-flash');
-          setTimeout(() => {
-            slotWindow.classList.remove('winner-flash');
-            // 順便移除觀眾模式，以防萬一
-            slotWindow.classList.remove('spectator-mode'); 
-        }, 4000); // 這裡的 4000ms 與 handleAnimationSync 中的時長保持一致
-       }
-      checkAndRecordWin();
-     }
+    function confirmReelStopped(type, turnId) {
+        const state = reelStates[type];
+        if (activeTurnId !== turnId || state.stopPending) return;
+        state.stopPending = true;
+        socket.timeout(6000).emit('reelStopped', { roomId, turnId, type }, (error, result) => {
+            if (activeTurnId !== turnId) return;
+            state.stopPending = false;
+            if (error || !result?.success) {
+                drawStatus.textContent = '未收到滾輪停止確認，請再按該拉桿重試。';
+                return;
+            }
+            state.stopConfirmed = true;
+            checkAndRecordWin();
+        });
+    }
+
+    function finalizeSpin(type, turnId) {
+        const state = reelStates[type];
+        if (activeTurnId !== turnId || state.hasStopped || !state.isStopping) return;
+        state.stopCleanup?.();
+        state.isSpinning = false;
+        state.isStopping = false;
+        state.hasStopped = true;
+        state.isShowingResult = true;
+        confirmReelStopped(type, turnId);
+    }
             
     function startSlowingDown(type, isAuto = false) {
         const state = reelStates[type];
-        if (state.isStopping || !state.finalResult) {
-            if (state.isSpinning) { setTimeout(() => startSlowingDown(type, isAuto), 100); }
-            return;
-        }
+        if (!state.isSpinning || state.isStopping || state.finalResult === null) return;
         state.isStopping = true;
+        clearTimeout(state.spinEndTimeout);
+        const turnId = activeTurnId;
         
         // ★★★ 修正：廣播停止動畫時傳遞正確的結果 ★★★
         socket.emit('broadcastAnimation', {
             roomId,
+            turnId,
             action: 'stopSpin',
             type,
-            playerId: myPlayerId,
-            finalResult: state.finalResult, // 傳遞正確的抽獎結果
             isAuto
         });
 
@@ -572,27 +647,30 @@ document.addEventListener('DOMContentLoaded', () => {
             leverEl.classList.remove('pulled');
         }
 
-        const onTransitionEnd = () => {
-            finalizeSpin(type);
-            reelEl.removeEventListener('transitionend', onTransitionEnd);
+        const onTransitionEnd = event => {
+            if (event.target === reelEl && event.propertyName === 'transform') finalizeSpin(type, turnId);
         };
         reelEl.addEventListener('transitionend', onTransitionEnd);
+        // Background tabs and disabled transitions may not deliver transitionend.
+        const stopTimeout = setTimeout(() => finalizeSpin(type, turnId), stopDuration + 100);
+        state.stopCleanup = () => {
+            clearTimeout(stopTimeout);
+            reelEl.removeEventListener('transitionend', onTransitionEnd);
+            state.stopCleanup = null;
+        };
         
         console.log(`玩家停止滾輪 ${type}，結果：${wonResult}，位置：${finalTargetIndex}`);
     }
             
     function handleSpin(type) {
-        if (amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
+        if (!socket.connected || !hasJoinedRoom || amIDealer || currentTurnPlayerId !== myPlayerId || !currentParticipantName) return;
         const state = reelStates[type];
-        
-        // ★★★ 修改：廣播拉桿動畫 ★★★
-        socket.emit('broadcastAnimation', {
-            roomId,
-            action: 'leverPull',
-            type,
-            playerId: myPlayerId,
-            playerName: currentParticipantName
-        });
+        if (state.isRequesting) return;
+        if (state.hasStopped) {
+            if (!state.stopConfirmed) confirmReelStopped(type, activeTurnId);
+            else checkAndRecordWin();
+            return;
+        }
         
         // 優先處理「手動煞停」
         if (state.isSpinning && !state.isStopping) {
@@ -607,10 +685,30 @@ document.addEventListener('DOMContentLoaded', () => {
             drawStatus.textContent = `這個滾輪您已經抽過了喔！`; return;
         }
 
+        state.isRequesting = true;
+        const requestingPlayerId = myPlayerId;
+        socket.timeout(6000).emit('spin', { roomId, type }, (error, result) => {
+            if (!socket.connected || myPlayerId !== requestingPlayerId || currentTurnPlayerId !== requestingPlayerId) return;
+            state.isRequesting = false;
+            if (error || !result?.success || !Number.isInteger(result.turnId)) {
+                drawStatus.textContent = result?.message || '未收到抽獎確認，請再按拉桿重試。';
+                return;
+            }
+            if (activeTurnId !== null && activeTurnId !== result.turnId) return;
+            activeTurnId = result.turnId;
+            state.finalResult = result.result;
+            startAcceptedSpin(type);
+        });
+    }
+
+    function startAcceptedSpin(type) {
+        const state = reelStates[type];
         state.hasBeenSpun = true;
+        state.hasStopped = false;
+        state.stopConfirmed = false;
         state.isStopping = false;
-        state.finalResult = null;
-        socket.emit('spin', { roomId, type, playerName: currentParticipantName });
+        state.isShowingResult = false;
+        socket.emit('broadcastAnimation', { roomId, turnId: activeTurnId, action: 'leverPull', type });
         
         (type === 'prize' ? leverLeft : leverRight).classList.add('pulled');
         drawStatus.textContent = '祝您好運！再次拉動拉桿即可煞停！';
@@ -618,17 +716,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // ★★★ 修改：廣播滾動開始動畫 ★★★
         socket.emit('broadcastAnimation', {
             roomId,
+            turnId: activeTurnId,
             action: 'startSpin',
-            type,
-            playerId: myPlayerId,
-            playerName: currentParticipantName
+            type
         });
         
         const reelEl = type === 'prize' ? prizeReel : quantityReel;
         const windowHeight = reelEl.parentElement.offsetHeight;
         
-        renderPrizeReel();
-        renderQuantityReel();
+        if (type === 'prize') renderPrizeReel();
+        else renderQuantityReel();
 
         state.isSpinning = true; // << 將狀態設定移到渲染之後！
 
@@ -709,12 +806,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (amIDealer) return;
         const name = participantNameInput.value.trim();
         if (!name) return;
-        currentParticipantName = name;
         socket.emit('setPlayerName', { roomId, name });
-        drawStatus.textContent = `你好, ${name}！`;
-        if (currentTurnPlayerId === myPlayerId) {
-             drawStatus.textContent += `請拉動拉桿！`;
-        }
+        drawStatus.textContent = '正在確認姓名…';
     });
     leverLeft.addEventListener('click', () => handleSpin('prize'));
     leverRight.addEventListener('click', () => handleSpin('quantity'));

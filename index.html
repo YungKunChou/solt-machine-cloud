@@ -108,6 +108,7 @@
     </div>
 
     <script src="config.js"></script>
+    <script src="room-session.js"></script>
     <script>
         const createBtn = document.getElementById('create-room-btn');
         // ↓↓↓ 請務必再次確認這是您部署後的後端伺服器網址 ↓↓↓
@@ -121,6 +122,12 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        if (!data.dealerToken) {
+                            throw new Error('本機或雲端服務仍是舊版，請先更新後端，再重新建立房間。');
+                        }
+                        if (!window.LOTTERY_ROOM_SESSION.save(data.roomId, data.dealerToken)) {
+                            throw new Error('瀏覽器無法保存主持人身分，請允許此網站使用分頁儲存空間後再試。');
+                        }
                         // 成功後，跳轉到您的遊戲頁面(slot-machine.html)，並附上包廂ID
                         window.location.href = `slot-machine.html?room=${data.roomId}`;
                     } else {
@@ -131,7 +138,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('無法連接到伺服器！');
+                    alert(error.message || '無法連接到伺服器！');
                     createBtn.disabled = false;
                     createBtn.textContent = '請進VIP包廂';
                 });
