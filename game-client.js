@@ -4,7 +4,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomId = new URLSearchParams(location.search).get('room');
     const el = id => document.getElementById(id);
     const input = el('participant-name'), status = el('draw-status');
-    if (!roomId) { status.textContent = '無效的房間網址，請從 VIP 首頁建立房間。'; return; }
+    const statusLabel = el('draw-status-label'), statusMessage = el('draw-status-message');
+    let displayedStatus = '';
+    function showStatus(notice) {
+        const key = JSON.stringify(notice);
+        if (key === displayedStatus) return;
+        displayedStatus = key;
+        status.dataset.kind = notice.kind;
+        statusLabel.textContent = notice.label;
+        if (notice.winner) {
+            const result = document.createElement('strong');
+            result.textContent = `「${notice.winner.prize}」× ${notice.winner.quantity}`;
+            statusMessage.replaceChildren(document.createTextNode('恭喜您抽中'), result, document.createTextNode('！'));
+        } else statusMessage.textContent = notice.message;
+    }
+    if (!roomId) { showStatus({ kind: 'error', label: '需要處理', message: '無效的房間網址，請從 VIP 首頁建立房間。' }); return; }
     const socket = io(window.LOTTERY_CONFIG.backendUrl);
     const clock = new window.LotteryClock.ServerClock();
     let activityId = null, participantId = null, dealer = false, joined = false, replaced = false;
@@ -12,8 +26,49 @@ document.addEventListener('DOMContentLoaded', () => {
     let storageUnavailable = false, pendingRemoval = null, namePending = false;
     const pendingReels = new Set();
     const pending = new Map();
+    // Connection/session notices outrank action errors; ordinary room updates
+    // can refresh the queue without overwriting either one.
+    let connectionNotice = { kind: 'connecting', label: '連線中', message: '正在加入房間…' };
+    const actionErrors = new Map();
     const envelope = data => ({ roomId, activityId, protocolVersion: P.VERSION, ...data });
-    const errorText = error => { status.textContent = error.message || String(error); };
+    function errorText(error, scope = 'general', event = '') {
+        actionErrors.delete(scope);
+        actionErrors.set(scope, { kind: 'error', label: '需要處理', message: error.message || String(error), event });
+        renderStatus();
+    }
+    function connectionStatus(kind, label, message) {
+        connectionNotice = { kind, label, message };
+        renderStatus();
+    }
+    function renderStatus() {
+        if (connectionNotice) { showStatus(connectionNotice); return; }
+        if (!state) return;
+        const me = state.players[participantId], head = state.queue[0], ahead = state.queue.indexOf(participantId);
+        if (me?.completed || me?.removed) {
+            actionErrors.delete('name');
+            for (const type of P.TYPES) actionErrors.delete('reel:' + type);
+        }
+        for (const type of P.TYPES) {
+            const issue = actionErrors.get('reel:' + type);
+            const plan = state.round?.playerId === participantId && state.round.reels[type];
+            if (issue && plan && (issue.event === 'startReel' || issue.event === 'stopReel' && plan.stop)) actionErrors.delete('reel:' + type);
+        }
+        const error = [...actionErrors.values()].at(-1);
+        if (error) { showStatus(error); return; }
+        if (namePending) { showStatus({ kind: 'connecting', label: '確認中', message: '正在確認姓名…' }); return; }
+        if (dealer) showStatus({ kind: 'neutral', label: '主持人', message: '邀請玩家掃描 QR Code 加入遊戲。' });
+        else if (me?.removed || storageUnavailable) showStatus({ kind: 'neutral', label: '觀看中', message: '目前為觀看模式，可繼續觀看抽獎。' });
+        else if (me?.completed) {
+            const winner = state.winners.find(entry => entry.playerId === participantId);
+            showStatus(winner ? { kind: 'success', label: '抽獎完成', winner: { prize: winner.prize, quantity: winner.quantity } }
+                : { kind: 'connecting', label: '同步中', message: '抽獎結果同步中，請稍候…' });
+        } else if (state.round?.playerId === participantId) showStatus({ kind: 'spinning', label: '抽獎中', message: '' });
+        else if (head === participantId) showStatus({ kind: 'turn', label: '輪到你了', message: me?.name
+            ? '請開始抽獎；操作逾期將由系統完成' : '請先輸入姓名，再開始抽獎。' });
+        else showStatus({ kind: 'neutral', label: head ? '等待中' : '等待加入', message: head
+            ? `目前由 ${state.players[head]?.name || '下一位玩家'} 抽獎。` + (ahead > 0 ? `前面還有 ${ahead} 位，請稍候。` : '')
+            : '目前沒有等待中的玩家。' });
+    }
     function rpc(event, payload, attempts = 3) {
         return new Promise((resolve, reject) => {
             const started = generation;
@@ -41,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
             pending.delete(operationId);
             if (result.snapshot) receive(result.snapshot);
             if (!result.success) throw Error(result.message || '操作失敗，請再試一次。');
+            if (event === 'setPlayerName') actionErrors.delete('name');
+            if (event === 'startReel' || event === 'stopReel') actionErrors.delete('reel:' + data.type);
+            renderStatus();
             return result;
         } finally { pending.delete(operationId); }
     }
@@ -56,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const players = Object.fromEntries(P.TYPES.map(type => [type,
         window.createLotteryReelPlayer(el(type + '-reel'), type, clock, message => {
-            status.textContent = message;
+            connectionStatus('connecting', '同步中', message);
             if (!recovery) recover().catch(errorText);
         }, renderControls)]));
     async function syncClock() {
@@ -89,8 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!P.acceptSnapshot(state, next, activityId)) return;
         if (state?.round && !next.round && next.lastRound?.id === state.round.id) {
-            el('slot-window').classList.add('winner-flash');
-            setTimeout(() => el('slot-window').classList.remove('winner-flash'), 3000);
+            el('window-reveal-glow').classList.add('winner-flash');
+            setTimeout(() => el('window-reveal-glow').classList.remove('winner-flash'), 2400);
         }
         state = next;
         render(); renderReels();
@@ -102,19 +160,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function recover() {
         if (!joined || recovery) return recovery;
+        const attempt = generation;
+        connectionStatus('connecting', '同步中', '正在同步抽獎進度，請稍候。');
         recovery = (async () => {
             await syncClock();
             const result = await rpc('getSnapshot', envelope({}));
             if (!result?.success) throw Error(result?.message || '同步失敗，請重新整理。');
+            if (attempt !== generation) return;
             applyBuffered(result.snapshot);
+            connectionNotice = null;
+            actionErrors.delete('general');
             render(); renderReels(true);
         })();
-        try { await recovery; } finally { recovery = null; if (buffered) { const next = buffered; buffered = null; receive(next); } }
+        try { await recovery; }
+        catch (error) { if (attempt === generation) connectionStatus('error', '同步失敗', error.message || String(error)); }
+        finally { recovery = null; if (buffered) { const next = buffered; buffered = null; receive(next); } }
     }
     socket.on('connect', async () => {
         if (replaced) { socket.disconnect(); return; }
         const attempt = ++generation;
-        joined = false; status.textContent = '正在加入房間…';
+        joined = false; connectionStatus('connecting', '連線中', '正在加入房間…'); renderControls();
         try {
             const info = await rpc('getRoomInfo', { roomId }).catch(() => { throw Error('無法確認服務版本，請確認後端已更新並可連線後重新整理。'); });
             if (!info?.success) throw Error(info?.message || '房間不存在。');
@@ -130,22 +195,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!result?.success) throw Error(result?.message || '加入失敗。');
             if (attempt !== generation) return;
             participantId = result.participantId; dealer = result.role === 'dealer'; joined = true;
+            connectionNotice = null;
+            actionErrors.delete('general');
             applyBuffered(result.snapshot);
             render(); renderReels(true);
-        } catch (error) { if (attempt === generation) { editor.disconnect(); errorText(error); } }
+        } catch (error) { if (attempt === generation) { editor.disconnect(); connectionStatus('error', '連線失敗', error.message || String(error)); } }
     });
     socket.on('updateRoomState', receive);
     socket.on('disconnect', () => {
         generation++; joined = false; buffered = null; pending.clear(); pendingReels.clear(); pendingRemoval = null; namePending = false;
         window.LOTTERY_HISTORY.stop(); editor.disconnect(); renderControls(); renderQueue();
-        if (!replaced) status.textContent = '連線中斷，正在重新連線；已成立的回合仍由系統完成。';
+        if (!replaced) connectionStatus('connecting', '重新連線中', '連線中斷，正在重新連線；已成立的回合仍由系統完成。');
     });
-    socket.on('connect_error', () => { editor.disconnect(); status.textContent = '無法連線，正在重試…'; });
+    socket.on('connect_error', () => {
+        if (replaced) return;
+        editor.disconnect(); connectionStatus('connecting', '重新連線中', '無法連線，系統正在自動重試，請稍候。');
+    });
     for (const event of ['dealerReplaced', 'participantReplaced']) socket.on(event, data => {
         if (data?.activityId !== activityId) return;
         replaced = true;
         if (event === 'dealerReplaced') window.LOTTERY_ROOM_SESSION.remove(roomId);
-        socket.disconnect(); status.textContent = '身分已在另一個分頁恢復，請使用最新的分頁。';
+        connectionStatus('error', '請切換分頁', '身分已在另一個分頁恢復，請使用最新的分頁。');
+        socket.disconnect();
     });
     socket.on('removedFromQueue', data => {
         if (data?.activityId === activityId && !dealer) window.LOTTERY_PLAYER_SESSION.markRemoved(roomId, activityId);
@@ -187,25 +258,22 @@ document.addEventListener('DOMContentLoaded', () => {
         notice.hidden = dealer || !me?.removed;
         notice.textContent = storageUnavailable ? '此瀏覽器無法保存分頁身分，目前僅能觀看。請允許此網站使用儲存空間，再重新整理以加入隊伍。'
             : '你已被莊家移出隊伍，目前可繼續觀看；此分頁重新整理後不會自動加入隊伍。';
-        if ((me?.name || null) !== registeredName) input.value = me?.name || '';
+        if ((me?.name || null) !== registeredName) {
+            input.value = me?.name || '';
+            if (me?.name) actionErrors.delete('name');
+        }
         registeredName = me?.name || null;
         editor.update(state, dealer);
         el('prize-management').style.display = dealer ? 'block' : 'none';
         el('dealer-share-info').style.display = dealer ? 'block' : 'none';
         el('export-csv-btn').style.display = dealer ? 'inline-block' : 'none';
         window.LOTTERY_HISTORY.track(state, dealer);
-        const head = state.queue[0], ahead = state.queue.indexOf(participantId);
-        if (dealer) status.textContent = '這是莊家頁面，邀請玩家刷 QR Code 加入遊戲';
-        else if (me?.removed) status.textContent = '觀看模式';
-        else if (me?.completed) {
-            const winner = state.winners.find(entry => entry.playerId === participantId);
-            status.textContent = winner ? `恭喜您抽中「${winner.prize}」× ${winner.quantity}！` : '抽獎結果同步中，請稍候…';
-        }
-        else if (state.round?.playerId === participantId) status.textContent = '再次拉動旋轉中的拉桿即可煞停；操作逾期將由系統完成。';
-        else if (head === participantId) status.textContent = me?.name ? `你好，${me.name}！請拉動拉桿！操作逾期將由系統完成。` : '輪到你了！請先輸入姓名！';
-        else status.textContent = head ? `現在輪到 ${state.players[head]?.name || '下一位玩家'}...` + (ahead > 0 ? ` 再等 ${ahead} 人就輪到您了` : '') : '目前沒有等待中的玩家。';
+        renderStatus();
+        const head = state.queue[0];
         const indicator = el('current-player-indicator');
-        indicator.textContent = state.round?.playerName || state.players[head]?.name || (head ? '等待玩家填寫姓名' : '等待玩家加入');
+        const currentPlayerName = state.round?.playerName || state.players[head]?.name;
+        indicator.classList.toggle('awaiting-player-name', !currentPlayerName);
+        indicator.textContent = currentPlayerName || (head ? '等待玩家填寫姓名' : '等待玩家加入');
         indicator.style.display = 'block';
         renderControls(); renderQueue(); renderWinners();
     }
@@ -258,10 +326,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (input.disabled || namePending) return;
         const name = input.value.trim(); if (!name || name === registeredName) return;
         const actionGeneration = generation;
-        namePending = true; status.textContent = '正在確認姓名…';
+        namePending = true; renderStatus();
         try { await operation('setPlayerName', { name }); }
-        catch (error) { if (actionGeneration === generation) { input.value = registeredName || ''; errorText(error); } }
-        finally { if (actionGeneration === generation) namePending = false; }
+        catch (error) { if (actionGeneration === generation) { input.value = registeredName || ''; errorText(error, 'name'); } }
+        finally { if (actionGeneration === generation) { namePending = false; renderStatus(); } }
     }
     input.addEventListener('change', submitName);
     input.addEventListener('keydown', event => {
@@ -272,9 +340,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const me = state?.players[participantId], round = state?.round;
             if (!joined || dealer || !me?.name || me.removed || me.completed || state.queue[0] !== participantId || pendingReels.has(type) || round?.reels[type]?.stop) return;
             const actionGeneration = generation;
+            const event = round?.reels[type] ? 'stopReel' : 'startReel';
             pendingReels.add(type); renderControls();
-            try { await operation(round?.reels[type] ? 'stopReel' : 'startReel', { type, roundId: round?.id ?? null }); }
-            catch (error) { if (actionGeneration === generation) errorText(error); }
+            try { await operation(event, { type, roundId: round?.id ?? null }); }
+            catch (error) { if (actionGeneration === generation) errorText(error, 'reel:' + type, event); }
             finally { if (actionGeneration === generation) { pendingReels.delete(type); renderControls(); } }
         };
         el(type === 'prize' ? 'lever-left' : 'lever-right').addEventListener('click', activate);
@@ -299,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { errorText(error); }
     }, P.TIMING.sampleMaxAgeMs);
     renderControls();
+    renderStatus();
     // Read-only diagnostics for manual synchronization measurement; no credentials or private draws.
     window.LOTTERY_DIAGNOSTICS = () => ({ activityId, stateVersion: state?.stateVersion ?? null,
         clock: clock.diagnostics(), reels: Object.fromEntries(P.TYPES.map(type => {

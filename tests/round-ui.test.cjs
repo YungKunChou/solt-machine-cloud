@@ -9,6 +9,7 @@ async function pageFixture(options = {}) {
     const elements = new Map();
     const el = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
     el('qrcode').textContent = 'QR Code 生成中';
+    el('draw-status').append(el('draw-status-label'), el('draw-status-message'));
     let monotonic = 1000;
     let submitSettings;
     const savedSettings = new Map();
@@ -29,7 +30,10 @@ async function pageFixture(options = {}) {
             else if (event === 'joinRoom') {
                 if (options.deferJoin) commands.push({ event, payload, callback });
                 else callback(null, { success: true, participantId: 'me', role: options.dealer ? 'dealer' : payload.spectator ? 'spectator' : 'player', snapshot: current });
-            } else if (event === 'getSnapshot') callback(null, { success: true, snapshot: current });
+            } else if (event === 'getSnapshot') {
+                if (options.deferSnapshot) commands.push({ event, payload, callback });
+                else callback(null, { success: true, snapshot: current });
+            }
             else commands.push({ event, payload, callback });
         } };
     const document = { hidden: false, getElementById: el, createElement: () => new Element(), createTextNode(text) { const n = new Element(); n.textContent = text; return n; },
@@ -70,12 +74,12 @@ async function pageFixture(options = {}) {
 test('waiting hint, exact queue count, in-progress text and unrelated updates preserve partially typed name', async () => {
     const f = await pageFixture();
     f.update({ players: { me: { id: 'me', name: null }, first: { name: '小美' }, second: { name: '小華' } }, queue: ['first', 'second', 'me'] });
-    assert.equal(f.el('draw-status').textContent, '現在輪到 小美... 再等 2 人就輪到您了');
+    assert.equal(f.el('draw-status-message').textContent, '目前由 小美 抽獎。前面還有 2 位，請稍候。');
     assert.equal(f.el('participant-name').placeholder, '在此輸入姓名…');
     f.el('participant-name').value = '正在打字';
     f.update({ queue: ['second', 'me'] });
     assert.equal(f.el('participant-name').value, '正在打字');
-    assert.equal(f.el('draw-status').textContent, '現在輪到 小華... 再等 1 人就輪到您了');
+    assert.equal(f.el('draw-status-message').textContent, '目前由 小華 抽獎。前面還有 1 位，請稍候。');
 });
 test('IME composition does not submit; name must be acknowledged before drawing; errors preserve placeholder', async () => {
     const f = await pageFixture(); const input = f.el('participant-name'); input.value = '小明';
@@ -127,20 +131,21 @@ test('removed and completed participants never receive playable controls; missed
     assert.equal(f.el('queue-spectator-notice').hidden, false);
     await f.el('lever-left').fire('click'); assert.equal(f.commands.length, 0);
     const finished = await pageFixture({ state: { players: { me: { completed: true, name: '小明' } }, queue: ['someone'] } });
-    assert.equal(finished.el('draw-status').textContent, '抽獎結果同步中，請稍候…');
+    assert.equal(finished.el('draw-status-message').textContent, '抽獎結果同步中，請稍候…');
     assert.equal(finished.el('prize-control').disabled, true);
 });
 test('completed player sees their own prize after reconnect and later draws, with prize names kept as literal text', async () => {
     const mine = { playerId: 'me', name: '小明', prize: '<咖啡 & 茶>', quantity: '3' };
     const other = { playerId: 'other', name: '小明', prize: '另一位的獎項', quantity: '1' };
     const f = await pageFixture({ state: { players: { me: { completed: true, name: '小明' } }, queue: [], winners: [other, mine] } });
-    assert.equal(f.el('draw-status').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
+    assert.equal(f.el('draw-status-message').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
     f.update({ winners: [other, mine, { playerId: 'later', name: '小華', prize: '最新獎品', quantity: '2' }] });
-    assert.equal(f.el('draw-status').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
-    assert.equal(f.el('draw-status').children.length, 0);
+    assert.equal(f.el('draw-status-message').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
+    assert.equal(f.el('draw-status-message').children[1].textContent, '「<咖啡 & 茶>」× 3');
+    assert.equal(f.el('draw-status-message').children[1].children.length, 0);
     assert.equal(f.el('prize-control').disabled, true);
     f.update({ winners: [other] });
-    assert.equal(f.el('draw-status').textContent, '抽獎結果同步中，請稍候…');
+    assert.equal(f.el('draw-status-message').textContent, '抽獎結果同步中，請稍候…');
 });
 
 test('only joined host archives snapshots, share URL has no credentials; replaced session cannot resume', async () => {
@@ -149,12 +154,12 @@ test('only joined host archives snapshots, share URL has no credentials; replace
     assert.equal(f.requests.find(r => r.event === 'joinRoom').payload.dealerToken, 'a'.repeat(64));
     f.handlers.dealerReplaced({ activityId: 'activity' }); assert.equal(f.socket.connected, false);
     f.update({ stateVersion: 20 }); assert.equal(f.archived.length, 1);
-    assert.match(f.el('draw-status').textContent, /最新的分頁/);
+    assert.match(f.el('draw-status-message').textContent, /最新的分頁/);
     const player = await pageFixture(); assert.equal(player.archived.length, 0);
 });
 test('protocol mismatch blocks join and late join reply cannot revive disconnected session', async () => {
     const old = await pageFixture({ protocolVersion: 1 }); assert.equal(old.requests.some(r => r.event === 'joinRoom'), false);
-    assert.match(old.el('draw-status').textContent, /版本不相容/);
+    assert.match(old.el('draw-status-message').textContent, /版本不相容/);
     const f = await pageFixture({ deferJoin: true }); f.socket.disconnect();
     await f.reply(0, { participantId: 'me', role: 'player' });
     f.update({ stateVersion: 99 }); await f.el('lever-left').fire('click');
@@ -175,7 +180,7 @@ test('late operation callback from old connection cannot unlock a newer pending 
     f.el('lever-left').fire('click'); assert.equal(f.commands.length, 2);
     await f.reply(0); f.el('lever-left').fire('click');
     assert.equal(f.commands.length, 1);
-    assert.doesNotMatch(f.el('draw-status').textContent, /連線已更新/);
+    assert.doesNotMatch(f.el('draw-status-message').textContent, /連線已更新/);
     await f.reply();
 });
 test('QR generation replaces the placeholder instead of appending beside it', async () => {
@@ -297,4 +302,86 @@ test('browser storage failure reports partial success without pretending server 
     f.update(settings); await f.reply(0, { settings });
     assert.match((await saving).persistenceWarning, /活動設定已更新.*未能保存/);
     assert.equal(f.savedSettings.size, 0);
+});
+
+test('status themes distinguish personal turn and win from watching, spinning and hosting', async () => {
+    const f = await pageFixture({ state: { players: { me: { name: '小明' }, other: { name: '小華' } }, queue: ['other', 'me'] } });
+    assert.equal(f.el('draw-status').dataset.kind, 'neutral');
+    assert.equal(f.el('draw-status-label').textContent, '等待中');
+    f.update({ queue: ['me'] });
+    assert.equal(f.el('draw-status').dataset.kind, 'turn');
+    assert.equal(f.el('draw-status-label').textContent, '輪到你了');
+    const round = { id: 1, playerId: 'me', playerName: '小明', options: { prize: f.current.prizes, quantity: f.current.quantities }, reels: {} };
+    f.update({ round });
+    assert.equal(f.el('draw-status').dataset.kind, 'spinning');
+    f.update({ round: null, queue: ['other'], players: { me: { name: '小明', completed: true }, other: { name: '小華' } },
+        winners: [{ playerId: 'me', name: '小明', prize: '咖啡', quantity: '2' }] });
+    assert.equal(f.el('draw-status').dataset.kind, 'success');
+    assert.equal(f.el('draw-status-message').children[1].textContent, '「咖啡」× 2');
+    const observer = await pageFixture({ state: { players: { me: { name: '觀眾' } }, queue: ['other', 'me'], round: { ...round, playerId: 'other' } } });
+    assert.equal(observer.el('draw-status').dataset.kind, 'neutral');
+    const host = await pageFixture({ dealer: true });
+    assert.equal(host.el('draw-status').dataset.kind, 'neutral');
+    assert.equal(host.el('draw-status-label').textContent, '主持人');
+});
+
+test('name error survives room updates until a corrected name is confirmed', async () => {
+    const f = await pageFixture(), input = f.el('participant-name');
+    input.value = '重複姓名'; input.fire('change');
+    await f.reply(0, { success: false, message: '姓名已有人使用，請換個名字。' });
+    assert.equal(f.el('draw-status').dataset.kind, 'error');
+    f.update({ queue: ['other', 'me'] });
+    assert.equal(f.el('draw-status-message').textContent, '姓名已有人使用，請換個名字。');
+    input.value = '新姓名'; input.fire('change');
+    f.update({ players: { me: { name: '新姓名' } } }); await f.reply();
+    assert.equal(f.el('draw-status').dataset.kind, 'neutral');
+    assert.doesNotMatch(f.el('draw-status-message').textContent, /姓名已有人使用/);
+});
+
+test('reel stop error persists across unrelated success and clears when that stop is confirmed', async () => {
+    const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
+    const round = { id: 1, playerId: 'me', playerName: '小明', options: { prize: f.current.prizes, quantity: f.current.quantities },
+        reels: { prize: { planId: 'p', stop: null }, quantity: null } };
+    f.update({ round }); f.el('prize-control').fire('click');
+    await f.reply(0, { success: false, message: '停止操作未成功，請再試一次。' });
+    f.update();
+    assert.equal(f.el('draw-status').dataset.kind, 'error');
+    f.el('quantity-control').fire('click'); await f.reply();
+    assert.equal(f.el('draw-status-message').textContent, '停止操作未成功，請再試一次。');
+    f.update({ round: { ...round, reels: { ...round.reels, prize: { planId: 'p', stop: { source: 'auto', stopAt: 3500 } } } } });
+    assert.equal(f.el('draw-status').dataset.kind, 'spinning');
+});
+
+test('connection notices outrank action errors and room updates; reconnect restores the actual state', async () => {
+    const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
+    f.handlers.error({ message: '操作失敗' });
+    f.socket.disconnect();
+    assert.equal(f.el('draw-status').dataset.kind, 'connecting');
+    assert.equal(f.el('draw-status-label').textContent, '重新連線中');
+    f.update({ queue: ['other', 'me'] });
+    assert.equal(f.el('draw-status-label').textContent, '重新連線中');
+    f.handlers.connect_error();
+    assert.equal(f.el('draw-status').dataset.kind, 'connecting');
+    f.socket.connected = true; await f.handlers.connect();
+    assert.equal(f.el('draw-status').dataset.kind, 'neutral');
+    assert.equal(f.el('draw-status-label').textContent, '等待中');
+    f.handlers.participantReplaced({ activityId: 'activity' });
+    f.handlers.connect_error(); f.handlers.error({ message: '稍後的舊錯誤' }); f.update();
+    assert.equal(f.el('draw-status').dataset.kind, 'error');
+    assert.equal(f.el('draw-status-label').textContent, '請切換分頁');
+});
+
+test('sync failure is not erased by room updates and clears only after a successful recovery', async () => {
+    const f = await pageFixture({ deferSnapshot: true });
+    f.docEvents.visibilitychange(); await flush();
+    assert.equal(f.el('draw-status').dataset.kind, 'connecting');
+    f.update({ queue: ['other', 'me'] });
+    assert.equal(f.el('draw-status-label').textContent, '同步中');
+    await f.reply(0, { success: false, message: '同步失敗，請重新整理。' });
+    f.update();
+    assert.equal(f.el('draw-status').dataset.kind, 'error');
+    assert.equal(f.el('draw-status-label').textContent, '同步失敗');
+    f.docEvents.visibilitychange(); await flush(); await f.reply();
+    assert.equal(f.el('draw-status').dataset.kind, 'neutral');
+    assert.equal(f.el('draw-status-label').textContent, '等待中');
 });

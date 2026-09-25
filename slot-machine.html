@@ -89,7 +89,10 @@
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
                 <input type="text" id="participant-name" placeholder="在此輸入姓名…" aria-label="玩家姓名" class="input-field w-full sm:w-2/3">
             </div>
-            <div id="draw-status" class="text-center text-lg text-red-600 font-bold mb-3 min-h-8" role="status"></div>
+            <div id="draw-status" class="draw-status" data-kind="connecting" role="status" aria-live="polite" aria-atomic="true">
+                <span id="draw-status-label" class="draw-status-label">連線中</span>
+                <span id="draw-status-message" class="draw-status-message">正在加入房間…</span>
+            </div>
             
            <div id="game-layout" class="flex flex-col gap-8 lg:flex-row lg:items-start">
            <div id="room-info" class="section-container mb-0 flex flex-col gap-8 items-stretch lg:w-2/5">
@@ -137,6 +140,7 @@
                         </div>
                         <div class="reel-window-trim" aria-hidden="true"><span class="reel-divider"></span></div>
                     </div>
+                    <div id="window-reveal-glow" class="window-reveal-glow" aria-hidden="true"></div>
                     <button id="lever-left" type="button" class="lever" aria-label="啟動獎項滾輪" disabled><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
                     <button id="lever-right" type="button" class="lever" aria-label="啟動數量滾輪" disabled><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
                 </div>

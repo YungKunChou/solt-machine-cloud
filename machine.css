@@ -51,8 +51,18 @@
 .lever:disabled { cursor: default; }
 .lever:enabled:hover .lever-art { filter: brightness(1.12); }
 .lever:focus-visible { outline: 3px solid #84602b; outline-offset: 4px; border-radius: 8px; }
+.draw-status { --status-ink: #62594d; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; align-content: center; gap: 1em; box-sizing: border-box; min-height: 80px; margin: 12px 0 24px; padding: 12px 16px; border: 0; background: transparent; color: var(--status-ink); font-size: clamp(24px, 3vw, 32px); line-height: 1.3; }
+.draw-status-label { padding: 0; text-align: center; font-size: inherit; font-weight: 700; white-space: nowrap; }
+.draw-status-message { min-width: 0; overflow-wrap: anywhere; }
+.draw-status-message strong { font-weight: 700; }
+.draw-status[data-kind="turn"] { --status-ink: #65471e; }
+.draw-status[data-kind="turn"] .draw-status-message { font-weight: 700; }
+.draw-status[data-kind="spinning"] { --status-ink: #705a3b; }
+.draw-status[data-kind="success"] { --status-ink: #65471e; }
+.draw-status[data-kind="error"] { --status-ink: #993e35; }
 .current-player-indicator { position: static; max-width: 100%; color: #39291b; font-size: clamp(24px, 3vw, 32px); font-weight: 700; line-height: 1.3; text-align: center; overflow-wrap: anywhere; }
-.current-player-indicator::before { content: '本輪玩家'; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 500; letter-spacing: .12em; color: #78634b; }
+.current-player-indicator::before { content: '本輪玩家：'; display: inline; font-size: .65em; font-weight: 500; color: #78634b; white-space: nowrap; }
+.current-player-indicator.awaiting-player-name::before { content: none; }
 .machine-controls { display: grid; grid-template-columns: 2fr 1fr; width: 80%; max-width: 580px; gap: 12px; }
 .machine-control { min-width: 0; min-height: 48px; padding: 10px 8px; border: 1px solid #765526; border-radius: 8px; background: #765526; color: white; font: 700 16px/1.3 'Noto Sans TC', sans-serif; cursor: pointer; touch-action: manipulation; }
 .machine-control:hover:not(:disabled) { background: #60431b; }
@@ -60,8 +70,10 @@
 .machine-control:disabled { background: #f0ece5; border-color: #d9cfc0; color: #786d5f; cursor: default; }
 .machine-hint { margin: 0; font-size: 13px; line-height: 1.6; text-align: center; color: #786d5f; }
 .spectator-mode { pointer-events: none; }
-@keyframes winner-glow { 0%, 100% { box-shadow: inset 0 0 0 rgba(200, 147, 48, 0); } 50% { box-shadow: inset 0 0 22px rgba(200, 147, 48, .6); } }
-.winner-flash { animation: winner-glow 1s 3; }
+/* Outside the clipped reel viewport so the glow surrounds the metal bezel. */
+.window-reveal-glow { position: absolute; left: calc(17.55% - .45cqw); top: calc(31.65% - .45cqw); width: calc(64.85% + .9cqw); height: calc(44.05% + .9cqw); box-sizing: border-box; z-index: 4; border: 2px solid rgba(255, 96, 83, .9); border-radius: 2.65cqw; box-shadow: 0 0 3.6cqw .9cqw rgba(216, 32, 32, .75), inset 0 0 3cqw .45cqw rgba(216, 32, 32, .55); opacity: 0; pointer-events: none; }
+@keyframes winner-glow { 0%, 100% { opacity: 0; } 45%, 55% { opacity: 1; } }
+.window-reveal-glow.winner-flash { animation: winner-glow .8s 3; }
 @media (min-width: 1024px) {
     #game-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
     #room-info { width: auto; padding: 24px; }
@@ -70,7 +82,7 @@
     #lottery-area { padding: 20px 12px; }
     #game-layout { gap: 24px; }
     .machine-controls { width: 100%; gap: 10px; }
-    #draw-status { font-size: 15px; line-height: 1.6; }
+    .draw-status { min-height: 126px; padding: 12px; }
 }
 @media (max-width: 360px) { .reel-item { font-size: 20px; } .quantity-item { font-size: 32px; } }
-@media (prefers-reduced-motion: reduce) { .lever-art { transition: none; } .winner-flash { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .lever-art { transition: none; } .window-reveal-glow.winner-flash { animation: none; opacity: .55; } }
