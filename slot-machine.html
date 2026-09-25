@@ -31,29 +31,6 @@
         .btn-danger:hover { background-color: #C9302C; }
         .input-field { border: 1px solid #D1D5DB; border-radius: 8px; padding: 0.6rem 1rem; transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease; width: 100%; }
         .input-field:focus { outline: none; border-color: #8D7B68; box-shadow: 0 0 0 3px rgba(141, 123, 104, 0.2); }
-        #slot-machine-wrapper { display: flex; justify-content: center; align-items: center; padding-bottom: 2rem; perspective: 1000px; }
-        .slot-machine { position: relative; width: min(600px, 100%); aspect-ratio: 1; height: auto; background-image: url('slot-machine.png'); background-size: contain; background-repeat: no-repeat; background-position: center; container-type: inline-size; }
-        .slot-window-wrapper { position: absolute; top: 26.9%; left: 19.4%; width: 60%; height: 26.2%; display: flex; justify-content: center; align-items: center; }
-        .slot-window { width: 100%; height: 100%; background-color: rgba(248, 247, 245, 0.9); border-radius: 5px; overflow: hidden; position: relative; border: 3px solid #333; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); display: flex; container-type: inline-size; }
-        .slot-window::before, .slot-window::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 20%; z-index: 2; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent); }
-        .slot-window::after { top: auto; bottom: 0; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent); }
-        .reel-container { position: relative; height: 100%; overflow: hidden; }
-        #prize-reel-container { width: 66.66%; border-right: 2px solid rgba(0,0,0,0.3); }
-        #quantity-reel-container { width: 33.33%; }
-        .slot-reel { position: absolute; top: 0; left: 0; width: 100%; }
-        .reel-item { box-sizing: border-box; width: 100%; height: 21.833333cqw; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; font-size: clamp(0.875rem, 6.67cqw, 1.5rem); line-height: 1.2; font-weight: bold; border-bottom: 2px dashed rgba(0,0,0,0.2); color: #333; padding: 0 clamp(6px, 5.56cqw, 20px); }
-        .quantity-item { font-size: clamp(1.5rem, 11.11cqw, 2.5rem); justify-content: center; }
-        .lever { position: absolute; top: 34%; width: clamp(44px, 13.33cqw, 80px); height: clamp(69px, 20.83cqw, 125px); cursor: pointer; transform-origin: 50% 100%; transform-style: preserve-3d; }
-        #lever-right { right: 9%; }
-        #lever-left { left: 8%; }
-        .lever-arm { width: clamp(7px, 2cqw, 12px); height: clamp(55px, 16.67cqw, 100px); background: linear-gradient(to right, #ccc, #777); border-radius: 10px; position: absolute; bottom: 0; left: 42.5%; transform-origin: bottom center; transition: transform 0.4s ease-in-out; transform-style: preserve-3d; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); }
-        .lever-ball { width: clamp(18px, 5cqw, 30px); height: clamp(18px, 5cqw, 30px); background: radial-gradient(circle at 10px 10px, #FF6B6B, #C41E3A); border-radius: 50%; position: absolute; top: -2.5cqw; left: 50%; transform: translateX(-50%); box-shadow: inset 3px 3px 5px rgba(255,255,255,0.4), inset -3px -3px 5px rgba(0,0,0,0.4); transition: transform 0.4s ease-in-out; }
-        .lever.pulled .lever-arm { transform: rotateX(-60deg); }
-        .lever.pulled .lever-ball { transform: translateX(-50%) rotateX(60deg) scale(1.25); }
-        .lever.returning .lever-arm { transform: rotateX(-42deg); }
-        .lever.returning .lever-ball { transform: translateX(-50%) rotateX(42deg) scale(1.175); }
-        @keyframes red-flash { 0%, 100% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0), 0 0 10px rgba(255,0,0,0); } 50% { box-shadow: inset 0 0 50px 25px rgba(255, 0, 0, 0.7), 0 0 40px 10px rgba(255,0,0,0.7); } }
-        .winner-flash { animation: red-flash 0.5s 6; }
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 50; }
         .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px; transition: background-color 0.5s ease; }
         .list-item > div, #winners-table > div { padding: 1rem; border-bottom: 1px solid #F3F4F6; }
@@ -70,9 +47,6 @@
         .page-title-row h1 { grid-column: 2; white-space: nowrap; }
         #youtube-player-controls { grid-column: 3; justify-self: end; }
         #toggle-music-btn { white-space: nowrap; }
-        @media (min-width: 1024px) {
-            #slot-machine-wrapper { margin-top: -3rem; }
-        }
         @media (max-width: 640px) {
             .page-title-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
             .page-title-row h1 { grid-column: 1; font-size: clamp(18px, 5.5vw, 28px); }
@@ -80,43 +54,17 @@
             #toggle-music-btn { font-size: 12px; padding: 8px; }
         }
         
-        /* 新增：當前玩家狀態指示 */
-        .current-player-indicator { 
-            position: absolute; 
-            top: -10px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: #FF6B6B; 
-            color: white; 
-            padding: 5px 15px; 
-            border-radius: 20px; 
-            font-size: 14px; 
-            font-weight: bold;
-            z-index: 10;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.05); }
-            100% { transform: translateX(-50%) scale(1); }
-        }
-        
-        /* 觀眾模式提示 */
-        .spectator-mode { 
-            opacity: 0.8; 
-            pointer-events: none; 
-        }
     </style>
     <link rel="stylesheet" href="settings.css">
     <link rel="stylesheet" href="queue.css">
+    <link rel="stylesheet" href="machine.css">
     <script src="settings-rules.js"></script>
     <script src="settings-store.js"></script>
     <script src="settings-editor.js"></script>
 </head>
 <body class="p-4 sm:p-8">
 
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
        <header class="text-center mb-10">
             <div class="page-title-row">
                 <h1 class="text-4xl font-bold text-[#333]">分享AI🤩玩拉霸</h1>
@@ -173,24 +121,30 @@
 
 </div>
             
-            <div id="slot-machine-wrapper" class="lg:w-3/5 lg:sticky lg:top-4">
+            <div id="slot-machine-wrapper" class="lg:sticky lg:top-4">
+                <div id="current-player-indicator" class="current-player-indicator" role="status" aria-live="polite" aria-atomic="true" style="display: none;"></div>
                 <div class="slot-machine">
-                    <!-- 新增：當前玩家指示器 -->
-                    <div id="current-player-indicator" class="current-player-indicator" style="display: none;"></div>
+                    <img class="machine-body" src="assets/design/slot-machine-compact-v2.png" alt="" width="1448" height="1086" draggable="false" aria-hidden="true">
                     
                     <div class="slot-window-wrapper">
                         <div id="slot-window" class="slot-window">
-                             <div id="prize-reel-container" class="reel-container">
+                             <div id="prize-reel-container" class="reel-container" role="group" aria-label="獎項">
                                 <div id="prize-reel" class="slot-reel"></div>
                              </div>
-                             <div id="quantity-reel-container" class="reel-container">
+                             <div id="quantity-reel-container" class="reel-container" role="group" aria-label="數量">
                                 <div id="quantity-reel" class="slot-reel"></div>
                              </div>
                         </div>
+                        <div class="reel-window-trim" aria-hidden="true"><span class="reel-divider"></span></div>
                     </div>
-                    <div id="lever-left" class="lever"><div class="lever-arm"><div class="lever-ball"></div></div></div>
-                    <div id="lever-right" class="lever"><div class="lever-arm"><div class="lever-ball"></div></div></div>
+                    <button id="lever-left" type="button" class="lever" aria-label="啟動獎項滾輪" disabled><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
+                    <button id="lever-right" type="button" class="lever" aria-label="啟動數量滾輪" disabled><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
                 </div>
+                <div class="machine-controls" role="group" aria-label="雙滾輪操作">
+                    <button id="prize-control" type="button" class="machine-control" disabled>抽獎項</button>
+                    <button id="quantity-control" type="button" class="machine-control" disabled>抽數量</button>
+                </div>
+                <p class="machine-hint">點拉桿或下方按鈕開始，再點一次停止。</p>
             </div>
             </div>
         </div>

@@ -33,6 +33,7 @@ npm.cmd run dev
 
 - `index.html`：入口與建立房間。
 - `slot-machine.html`：抽獎介面。
+- `machine.css`、`assets/design/slot-machine-compact-v2.png`：定稿機台、加高視窗與響應式雙滾輪；同一張透明圖片分層呈現機身與可動拉桿，保留原始質感。
 - `settings-editor.js`、`settings.css`：獎項與數量的批次編輯介面。
 - `settings-rules.js`：前後端共用的設定驗證。
 - `settings-store.js`：此瀏覽器最新一版獎項與數量設定；新活動建立時套用。

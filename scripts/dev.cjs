@@ -27,6 +27,8 @@ const publicFiles = new Map([
     ...['game-protocol.js', 'reel-motion.js', 'server-clock.js', 'reel-player.js', 'game-client.js', 'game-music.js'].map(file => [file, 'text/javascript; charset=utf-8']),
     ['settings.css', 'text/css; charset=utf-8'],
     ['queue.css', 'text/css; charset=utf-8'],
+    ['machine.css', 'text/css; charset=utf-8'],
+    ['assets/design/slot-machine-compact-v2.png', 'image/png'],
     ['assets/icons/plus.svg', 'image/svg+xml'],
     ['assets/icons/trash.svg', 'image/svg+xml'],
     ['assets/icons/lock-fill.svg', 'image/svg+xml'],

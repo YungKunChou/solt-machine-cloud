@@ -163,7 +163,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const returning = moving && visiblePlan.stop?.source === 'manual';
             const pulled = !returning && (moving || !visiblePlan && pendingReels.has(type));
             const enabled = joined && !dealer && !me?.removed && !me?.completed && !!me?.name && state?.queue[0] === participantId && !plan?.stop && !pendingReels.has(type);
-            lever.setAttribute('aria-disabled', String(!enabled));
+            const label = type === 'prize' ? '獎項' : '數量';
+            const control = el(type + '-control');
+            const controlText = pendingReels.has(type) ? '確認中…'
+                : !plan ? `抽${label}`
+                : plan.stop ? (moving ? '減速中…' : '已停止')
+                : `停止${label}`;
+            for (const button of [lever, control]) {
+                button.disabled = !enabled;
+                button.setAttribute('aria-disabled', String(!enabled));
+                button.setAttribute('aria-label', controlText.includes(label) ? controlText : `${label}：${controlText}`);
+            }
+            control.textContent = controlText;
             lever.classList.toggle('pulled', pulled);
             lever.classList.toggle('returning', returning);
         }
@@ -186,13 +197,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const head = state.queue[0], ahead = state.queue.indexOf(participantId);
         if (dealer) status.textContent = '這是莊家頁面，邀請玩家刷 QR Code 加入遊戲';
         else if (me?.removed) status.textContent = '觀看模式';
-        else if (me?.completed) status.textContent = '您已完成抽獎。';
+        else if (me?.completed) {
+            const winner = state.winners.find(entry => entry.playerId === participantId);
+            status.textContent = winner ? `恭喜您抽中「${winner.prize}」× ${winner.quantity}！` : '抽獎結果同步中，請稍候…';
+        }
         else if (state.round?.playerId === participantId) status.textContent = '再次拉動旋轉中的拉桿即可煞停；操作逾期將由系統完成。';
         else if (head === participantId) status.textContent = me?.name ? `你好，${me.name}！請拉動拉桿！操作逾期將由系統完成。` : '輪到你了！請先輸入姓名！';
         else status.textContent = head ? `現在輪到 ${state.players[head]?.name || '下一位玩家'}...` + (ahead > 0 ? ` 再等 ${ahead} 人就輪到您了` : '') : '目前沒有等待中的玩家。';
         const indicator = el('current-player-indicator');
-        indicator.textContent = state.round ? `${state.round.playerName} 正在抽獎` : '';
-        indicator.style.display = state.round ? 'block' : 'none';
+        indicator.textContent = state.round?.playerName || state.players[head]?.name || (head ? '等待玩家填寫姓名' : '等待玩家加入');
+        indicator.style.display = 'block';
         renderControls(); renderQueue(); renderWinners();
     }
     function renderQueue() {
@@ -253,15 +267,19 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('keydown', event => {
         if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); submitName(); }
     });
-    for (const type of P.TYPES) el(type === 'prize' ? 'lever-left' : 'lever-right').addEventListener('click', async () => {
-        const me = state?.players[participantId], round = state?.round;
-        if (!joined || dealer || !me?.name || me.removed || me.completed || state.queue[0] !== participantId || pendingReels.has(type) || round?.reels[type]?.stop) return;
-        const actionGeneration = generation;
-        pendingReels.add(type); renderControls();
-        try { await operation(round?.reels[type] ? 'stopReel' : 'startReel', { type, roundId: round?.id ?? null }); }
-        catch (error) { if (actionGeneration === generation) errorText(error); }
-        finally { if (actionGeneration === generation) { pendingReels.delete(type); renderControls(); } }
-    });
+    for (const type of P.TYPES) {
+        const activate = async () => {
+            const me = state?.players[participantId], round = state?.round;
+            if (!joined || dealer || !me?.name || me.removed || me.completed || state.queue[0] !== participantId || pendingReels.has(type) || round?.reels[type]?.stop) return;
+            const actionGeneration = generation;
+            pendingReels.add(type); renderControls();
+            try { await operation(round?.reels[type] ? 'stopReel' : 'startReel', { type, roundId: round?.id ?? null }); }
+            catch (error) { if (actionGeneration === generation) errorText(error); }
+            finally { if (actionGeneration === generation) { pendingReels.delete(type); renderControls(); } }
+        };
+        el(type === 'prize' ? 'lever-left' : 'lever-right').addEventListener('click', activate);
+        el(type + '-control').addEventListener('click', activate);
+    }
     el('export-csv-btn').addEventListener('click', () => { if (dealer && state?.winners.length) window.LOTTERY_HISTORY.download(state.winners); });
     const share = new URL(location.href); share.search = ''; share.hash = ''; share.searchParams.set('room', roomId);
     el('room-url-input').value = share.href;

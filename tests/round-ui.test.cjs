@@ -127,8 +127,22 @@ test('removed and completed participants never receive playable controls; missed
     assert.equal(f.el('queue-spectator-notice').hidden, false);
     await f.el('lever-left').fire('click'); assert.equal(f.commands.length, 0);
     const finished = await pageFixture({ state: { players: { me: { completed: true, name: '小明' } }, queue: ['someone'] } });
-    assert.equal(finished.el('draw-status').textContent, '您已完成抽獎。');
+    assert.equal(finished.el('draw-status').textContent, '抽獎結果同步中，請稍候…');
+    assert.equal(finished.el('prize-control').disabled, true);
 });
+test('completed player sees their own prize after reconnect and later draws, with prize names kept as literal text', async () => {
+    const mine = { playerId: 'me', name: '小明', prize: '<咖啡 & 茶>', quantity: '3' };
+    const other = { playerId: 'other', name: '小明', prize: '另一位的獎項', quantity: '1' };
+    const f = await pageFixture({ state: { players: { me: { completed: true, name: '小明' } }, queue: [], winners: [other, mine] } });
+    assert.equal(f.el('draw-status').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
+    f.update({ winners: [other, mine, { playerId: 'later', name: '小華', prize: '最新獎品', quantity: '2' }] });
+    assert.equal(f.el('draw-status').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
+    assert.equal(f.el('draw-status').children.length, 0);
+    assert.equal(f.el('prize-control').disabled, true);
+    f.update({ winners: [other] });
+    assert.equal(f.el('draw-status').textContent, '抽獎結果同步中，請稍候…');
+});
+
 test('only joined host archives snapshots, share URL has no credentials; replaced session cannot resume', async () => {
     const f = await pageFixture({ dealer: true });
     assert.equal(f.archived.length, 1); assert.equal(f.el('room-url-input').value, 'http://local/slot-machine.html?room=test');
@@ -168,6 +182,46 @@ test('QR generation replaces the placeholder instead of appending beside it', as
     const f = await pageFixture();
     assert.equal(f.el('qrcode').textContent, '');
     assert.equal(f.el('qrcode').children.length, 1);
+});
+
+test('machine buttons and levers share pending locks, stop commands, and disconnect restrictions', async () => {
+    const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
+    const button = f.el('prize-control'), lever = f.el('lever-left');
+    assert.equal(button.disabled, false);
+    assert.equal(button.textContent, '抽獎項');
+    button.fire('click');
+    assert.equal(button.disabled, true); assert.equal(lever.disabled, true);
+    assert.equal(button.textContent, '確認中…');
+    await lever.fire('click'); assert.equal(f.commands.length, 1);
+    assert.equal(f.commands[0].event, 'startReel');
+    const round = { id: 1, playerId: 'me', playerName: '小明', options: { prize: f.current.prizes, quantity: f.current.quantities },
+        reels: { prize: { planId: 'p', stop: null }, quantity: null } };
+    f.update({ round }); await f.reply();
+    assert.equal(button.textContent, '停止獎項'); assert.equal(button.disabled, false);
+    button.fire('click'); assert.equal(f.commands[0].event, 'stopReel');
+    f.update({ round: { ...round, reels: { ...round.reels, prize: { planId: 'p', stop: { source: 'manual', stopAt: 3500 } } } } });
+    await f.reply();
+    assert.equal(button.textContent, '減速中…'); assert.equal(button.disabled, true);
+    f.time(3500); assert.equal(button.textContent, '已停止');
+    f.socket.disconnect();
+    assert.equal(f.el('quantity-control').disabled, true);
+    await f.el('quantity-control').fire('click'); assert.equal(f.commands.length, 0);
+});
+
+test('previous result does not label the next draw stopped, and host/waiting controls stay disabled', async () => {
+    const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
+    f.update({ lastRound: { id: 1, settingsRevision: 0, options: { prize: f.current.prizes, quantity: f.current.quantities },
+        reels: { prize: { planId: 'previous', stop: { stopAt: 900 } }, quantity: null } } });
+    assert.equal(f.el('prize-control').textContent, '抽獎項');
+    assert.equal(f.el('prize-control').disabled, false);
+    assert.equal(f.el('current-player-indicator').textContent, '小明');
+    f.update({ queue: ['other', 'me'], players: { me: { name: '小明' }, other: { name: '小華' } } });
+    assert.equal(f.el('current-player-indicator').textContent, '小華');
+    assert.equal(f.el('prize-control').disabled, true);
+    await f.el('prize-control').fire('click'); assert.equal(f.commands.length, 0);
+    const host = await pageFixture({ dealer: true });
+    assert.equal(host.el('prize-control').disabled, true);
+    await host.el('prize-control').fire('click'); assert.equal(host.commands.length, 0);
 });
 test('accepted manual stop partially returns lever and only the visual stop time returns it fully', async () => {
     const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });

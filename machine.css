@@ -1,0 +1,76 @@
+/* Approved v2 artwork: 1448 × 1086. All crops use the same image and scale.
+   Body excludes only the two handles; their original pixels animate separately. */
+#slot-machine-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; min-width: 0; gap: 12px; padding-bottom: 8px; }
+.slot-machine { position: relative; isolation: isolate; width: min(760px, 100%); aspect-ratio: 4 / 3; container-type: inline-size; }
+.machine-body { display: block; width: 100%; height: 100%; pointer-events: none; user-select: none; clip-path: polygon(11.74% 0, 88.26% 0, 88.26% 47.88%, 90.12% 52.49%, 90.12% 53.87%, 100% 53.87%, 100% 100%, 0 100%, 0 53.87%, 9.88% 53.87%, 9.88% 52.49%, 11.74% 47.88%); }
+.slot-window-wrapper { position: absolute; left: 17.55%; top: 31.65%; width: 64.85%; height: 44.05%; overflow: hidden; border-radius: 2.2cqw; }
+.slot-window { position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; container-type: inline-size; }
+.slot-window::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(to bottom, rgba(92, 65, 31, .22), rgba(240, 225, 191, .18) 16%, transparent 32%, transparent 68%, rgba(240, 225, 191, .18) 84%, rgba(92, 65, 31, .22)); }
+/* Fixed cabinet trim sits in front of both moving reels. Short edge brackets
+   mark the selected row without drawing stationary lines across the reel face. */
+.reel-window-trim { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.reel-window-trim::before, .reel-window-trim::after {
+    --trim-thickness: clamp(3px, .55cqw, 4px);
+    content: ''; position: absolute; top: 20%; height: 60%; width: clamp(8px, 1.8cqw, 13px);
+    background:
+        linear-gradient(to bottom, #f4e2b8 0 25%, #b99b65 25% 75%, #927344 75% 100%) left top / 100% var(--trim-thickness) no-repeat,
+        linear-gradient(to bottom, #f4e2b8 0 25%, #b99b65 25% 75%, #927344 75% 100%) left bottom / 100% var(--trim-thickness) no-repeat,
+        linear-gradient(to right, #f4e2b8 0 25%, #b99b65 25% 75%, #927344 75% 100%) left center / var(--trim-thickness) 100% no-repeat;
+    filter: drop-shadow(2px 2px 2px rgba(62, 39, 10, .4));
+}
+/* Recess half the rail beneath the clipped window edge to meet the metal bezel. */
+.reel-window-trim::before { left: calc(var(--trim-thickness) * -.5); }
+.reel-window-trim::after { right: calc(var(--trim-thickness) * -.5); background-position: right top, right bottom, right center; }
+.reel-divider { position: absolute; top: 0; bottom: 0; left: 66.6667%; width: clamp(2px, .45cqw, 3px); transform: translateX(-50%); background: #b99b65; border-left: 1px solid #f4e2b8; border-right: 1px solid #927344; box-shadow: 2px 0 4px rgba(62, 39, 10, .22); }
+.reel-container { position: relative; height: 100%; min-width: 0; overflow: hidden; }
+#prize-reel-container { width: 66.6667%; }
+#quantity-reel-container { width: 33.3333%; }
+.slot-reel { position: absolute; top: 0; left: 0; width: 100%; }
+/* 60% of the reel viewport; the shared player measures this real cell height. */
+.reel-item { box-sizing: border-box; width: 100%; height: 30.57cqw; display: flex; align-items: center; justify-content: center; padding: 0 clamp(5px, 3cqw, 14px); font-size: clamp(22px, 8.4cqw, 40px); line-height: 1.15; font-weight: 700; text-align: center; color: #39291b; }
+.quantity-item { font-size: clamp(36px, 14cqw, 64px); font-variant-numeric: tabular-nums; }
+/* Curve and blur affect the label only; cell geometry remains authoritative. */
+.reel-label { transform-origin: center center; }
+.lever { --shaft-scale: 1; --ball-offset: 0%; position: absolute; top: 24.8619%; width: 8.9779%; height: 29.0055%; border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#lever-left { left: 3.0387%; }
+#lever-right { right: 3.0387%; }
+.lever::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
+.lever-art { position: absolute; inset: 0; pointer-events: none; background-image: url('assets/design/slot-machine-compact-v2.png'); background-repeat: no-repeat; background-size: 1113.8462% 344.7619%; transform-origin: 52% 100%; transition: transform .4s ease-in-out, filter .2s ease; }
+#lever-left .lever-art { background-position: 3.3384% 35.0195%; }
+#lever-right .lever-art { background-position: 96.6616% 35.0195%; }
+/* Split the 315px handle crop at y=120px, just below the ball.
+   Only the 195px shaft is foreshortened. The ball translates by
+   (195 / 315) * (1 - scale), keeping its original shape and meeting the shaft
+   throughout both transitions (same duration and easing, including reversals). */
+#lever-left .lever-shaft { clip-path: polygon(0 38.0952%, 96.92% 38.0952%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 100%, 0 100%); }
+#lever-right .lever-shaft { clip-path: polygon(3.08% 38.0952%, 100% 38.0952%, 100% 100%, 23.85% 100%, 23.85% 93.65%, 3.08% 79.37%); }
+.lever-shaft { transform: scaleY(var(--shaft-scale)); }
+.lever-ball { clip-path: inset(0 0 61.9048% 0); transform: translateY(var(--ball-offset)); }
+.lever.pulled { --shaft-scale: .5; --ball-offset: 30.9524%; }
+.lever.returning { --shaft-scale: .7431448; --ball-offset: 15.9006%; }
+.lever:disabled { cursor: default; }
+.lever:enabled:hover .lever-art { filter: brightness(1.12); }
+.lever:focus-visible { outline: 3px solid #84602b; outline-offset: 4px; border-radius: 8px; }
+.current-player-indicator { position: static; max-width: 100%; color: #39291b; font-size: clamp(24px, 3vw, 32px); font-weight: 700; line-height: 1.3; text-align: center; overflow-wrap: anywhere; }
+.current-player-indicator::before { content: '本輪玩家'; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 500; letter-spacing: .12em; color: #78634b; }
+.machine-controls { display: grid; grid-template-columns: 2fr 1fr; width: 80%; max-width: 580px; gap: 12px; }
+.machine-control { min-width: 0; min-height: 48px; padding: 10px 8px; border: 1px solid #765526; border-radius: 8px; background: #765526; color: white; font: 700 16px/1.3 'Noto Sans TC', sans-serif; cursor: pointer; touch-action: manipulation; }
+.machine-control:hover:not(:disabled) { background: #60431b; }
+.machine-control:focus-visible { outline: 3px solid #84602b; outline-offset: 3px; }
+.machine-control:disabled { background: #f0ece5; border-color: #d9cfc0; color: #786d5f; cursor: default; }
+.machine-hint { margin: 0; font-size: 13px; line-height: 1.6; text-align: center; color: #786d5f; }
+.spectator-mode { pointer-events: none; }
+@keyframes winner-glow { 0%, 100% { box-shadow: inset 0 0 0 rgba(200, 147, 48, 0); } 50% { box-shadow: inset 0 0 22px rgba(200, 147, 48, .6); } }
+.winner-flash { animation: winner-glow 1s 3; }
+@media (min-width: 1024px) {
+    #game-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
+    #room-info { width: auto; padding: 24px; }
+}
+@media (max-width: 640px) {
+    #lottery-area { padding: 20px 12px; }
+    #game-layout { gap: 24px; }
+    .machine-controls { width: 100%; gap: 10px; }
+    #draw-status { font-size: 15px; line-height: 1.6; }
+}
+@media (max-width: 360px) { .reel-item { font-size: 20px; } .quantity-item { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { .lever-art { transition: none; } .winner-flash { animation: none; } }
