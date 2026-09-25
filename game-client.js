@@ -270,12 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         el('export-csv-btn').style.display = dealer ? 'inline-block' : 'none';
         window.LOTTERY_HISTORY.track(state, dealer);
         renderStatus();
-        const head = state.queue[0];
-        const indicator = el('current-player-indicator');
-        const currentPlayerName = state.round?.playerName || state.players[head]?.name;
-        indicator.classList.toggle('awaiting-player-name', !currentPlayerName);
-        indicator.textContent = currentPlayerName || (head ? '等待玩家填寫姓名' : '等待玩家加入');
-        indicator.style.display = 'block';
         renderControls(); renderQueue(); renderWinners();
     }
     function renderQueue() {
@@ -285,13 +279,21 @@ document.addEventListener('DOMContentLoaded', () => {
         el('queue-empty').hidden = state.queue.length > 0;
         state.queue.forEach((pid, index) => {
             const person = state.players[pid], active = state.round?.playerId === pid;
-            const row = document.createElement('li'); row.className = active ? 'queue-active' : '';
+            const next = !state.round && index === 0;
+            const row = document.createElement('li'); row.className = active || next ? 'queue-active' : '';
             const number = document.createElement('span'); number.className = 'queue-number'; number.textContent = index + 1;
             const name = document.createElement('span'); name.className = 'queue-name' + (pid === participantId ? ' queue-self' : '');
             const label = person?.name || `玩家 #${index + 1}`;
             name.textContent = label + (pid === participantId ? '（你）' : '');
             if (!person?.name) { const hint = document.createElement('span'); hint.className = 'queue-subtitle'; hint.textContent = '尚未填姓名'; name.append(hint); }
             row.append(number, name);
+            let actions = row;
+            if (next && person?.name) {
+                actions = document.createElement('div'); actions.className = 'queue-turn-actions';
+                const status = document.createElement('span'); status.className = 'queue-locked';
+                status.textContent = pid === participantId ? '輪到你了' : '輪到抽獎';
+                actions.append(status); row.append(actions);
+            }
             if (active) {
                 const lock = document.createElement('span'); lock.className = 'queue-locked';
                 const icon = document.createElement('span'); icon.className = 'queue-icon'; icon.setAttribute('aria-hidden', 'true');
@@ -307,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { await operation('removeQueuedPlayer', { playerId: pid }); }
                     catch (error) { if (actionGeneration === generation) { el('queue-feedback').textContent = error.message; el('queue-feedback').hidden = false; } }
                     finally { if (actionGeneration === generation) { pendingRemoval = null; renderQueue(); } }
-                }); row.append(button);
+                }); actions.append(button);
             }
             list.append(row);
         });

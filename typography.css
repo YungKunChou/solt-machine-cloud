@@ -1,0 +1,136 @@
+/* Shared UI sizes and two weights; the page title and reel results have their own scale. */
+body.game-page {
+    --type-large: 26px;
+    --type-standard: 20px;
+    --type-small: 16px;
+    font-size: var(--type-standard);
+    font-weight: 400;
+    line-height: 1.5;
+}
+@media (max-width: 640px) {
+    body.game-page { --type-large: 22px; --type-standard: 18px; }
+}
+
+.game-page .page-title-row h1,
+.game-page #prize-management h2,
+.game-page #lottery-area > h2 {
+    font-size: var(--type-large);
+    font-weight: 700;
+    line-height: 1.4;
+}
+.game-page .page-title-row h1 { font-size: 36px; }
+@media (max-width: 640px) {
+    .game-page .page-title-row h1 { font-size: 28px; }
+}
+.game-page #prize-management h3,
+.game-page #room-info h4 {
+    font-size: var(--type-standard);
+    font-weight: 700;
+    line-height: 1.5;
+}
+.game-page #room-info h4 { font-size: calc(var(--type-standard) * 1.2); }
+.game-page #room-info #queue-count { font-size: calc(var(--type-small) * 1.2); }
+
+/* Routine prompts stay quiet; emphasize the turn label and the actual prize. */
+.game-page .draw-status {
+    font-size: var(--type-standard);
+    font-weight: 400;
+    line-height: 1.5;
+}
+.game-page .draw-status-label,
+.game-page .draw-status[data-kind="turn"] .draw-status-message { font-weight: 400; }
+.game-page .draw-status[data-kind="turn"] .draw-status-label,
+.game-page .draw-status-message strong { font-weight: 700; }
+
+.game-page .input-field,
+.game-page .queue-name,
+.game-page #winners-table,
+.game-page .queue-empty,
+.game-page .queue-feedback,
+.game-page .queue-spectator-notice,
+.game-page .settings-input,
+.game-page .settings-value {
+    font-size: var(--type-standard);
+    font-weight: 400;
+    line-height: 1.5;
+}
+.game-page .queue-self { font-weight: 700; }
+.game-page .settings-input { height: calc(1.5em + 3px); }
+.game-page .settings-value { min-height: calc(1.5em + 3px); }
+
+/* Enlarge option content only; row numbers retain the small UI size. */
+.game-page .settings-input,
+.game-page .settings-value { font-size: var(--type-large); }
+.game-page #quantities-settings-rows .settings-value {
+    width: fit-content;
+    max-width: 100%;
+    min-width: 4em;
+    padding: 4px 16px;
+    margin-block: 6px;
+    border: 1px solid #c8b49b;
+    border-radius: 8px;
+    background: #eee3d5;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.game-page #quantities-settings-rows .settings-value::before {
+    content: 'X';
+    margin-right: .4em;
+}
+
+.game-page header p,
+.game-page #room-url-input,
+.game-page #qrcode span,
+.game-page #queue-count,
+.game-page .queue-number,
+.game-page .queue-subtitle,
+.game-page .queue-locked,
+.game-page .machine-hint,
+.game-page .settings-badge,
+.game-page .settings-count,
+.game-page .settings-number,
+.game-page .settings-error,
+.game-page .settings-list-message,
+.game-page .settings-undo,
+.game-page .settings-notice,
+.game-page .settings-status,
+.game-page .settings-hint {
+    font-size: var(--type-small);
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.game-page .btn,
+.game-page #toggle-music-btn,
+.game-page #prize-management button {
+    font-size: var(--type-standard);
+    font-weight: 400;
+    line-height: 1.5;
+}
+.game-page .btn-primary,
+.game-page .machine-control,
+.game-page #prize-management .settings-button:not(.secondary):not(.restore-defaults) {
+    font-size: var(--type-standard);
+    font-weight: 700;
+    line-height: 1.5;
+}
+.game-page .queue-remove,
+.game-page #prize-management .settings-remove {
+    font-size: var(--type-small);
+    font-weight: 400;
+    line-height: 1;
+}
+
+/* Let larger supporting text wrap rather than collide with nearby controls. */
+.game-page .settings-heading,
+.game-page .settings-heading-actions,
+.game-page .settings-footer { flex-wrap: wrap; }
+.game-page .settings-footer .settings-button { white-space: normal; min-height: 48px; }
+.game-page .queue-subtitle { white-space: normal; }
+.game-page #winners-table > div { height: auto; min-height: 48px; overflow-wrap: anywhere; }
+.game-page #winners-table { max-height: 144px; }
+@media (max-width: 960px) {
+    .game-page .page-title-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .game-page .page-title-row h1 { grid-column: 1; white-space: normal; }
+    .game-page #youtube-player-controls { grid-column: 1; justify-self: center; }
+}

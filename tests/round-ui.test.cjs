@@ -114,6 +114,26 @@ test('timeout resends exact operation identity; confirmation clears wait', async
     f.el('lever-left').fire('click'); assert.equal(f.commands.length, 1);
     assert.notEqual(f.commands[0].payload.operationId, sent.operationId);
 });
+test('queue head is highlighted before spinning, keeps host removal, and highlight moves to the next player', async () => {
+    const f = await pageFixture({ dealer: true, state: { players: { me: {}, first: { name: 'BB' }, waiting: { name: 'CC' } }, queue: ['first', 'waiting'] } });
+    let rows = f.el('queue-list').children;
+    assert.equal(rows[0].className, 'queue-active');
+    assert.match(rows[0].textContent, /輪到抽獎/);
+    assert.equal(rows[1].className, '');
+    const remove = rows[0].children.at(-1).children.at(-1);
+    assert.equal(remove.className, 'queue-remove');
+    remove.fire('click');
+    assert.equal(f.commands[0].payload.playerId, 'first');
+    f.update({ queue: ['waiting'] }); await f.reply();
+    rows = f.el('queue-list').children;
+    assert.equal(rows[0].className, 'queue-active');
+    assert.match(rows[0].textContent, /CC.*輪到抽獎/);
+    f.update({ round: { id: 1, playerId: 'waiting', playerName: 'CC', options: { prize: [], quantity: [] }, reels: {} } });
+    assert.equal(f.el('queue-list').children[0].className, 'queue-active');
+    assert.match(f.el('queue-list').children[0].textContent, /抽獎中/);
+    assert.equal(f.el('queue-list').children[0].children.at(-1).className, 'queue-locked');
+});
+
 test('host queue removal is direct, protects active player and never shows success notification', async () => {
     const f = await pageFixture({ dealer: true, state: { players: { me: {}, first: { name: '小明' }, waiting: { name: '小華' } }, queue: ['first', 'waiting'],
         round: { id: 1, playerId: 'first', playerName: '小明', options: { prize: [], quantity: [] }, reels: {} } } });
@@ -219,9 +239,9 @@ test('previous result does not label the next draw stopped, and host/waiting con
         reels: { prize: { planId: 'previous', stop: { stopAt: 900 } }, quantity: null } } });
     assert.equal(f.el('prize-control').textContent, '抽獎項');
     assert.equal(f.el('prize-control').disabled, false);
-    assert.equal(f.el('current-player-indicator').textContent, '小明');
+    assert.match(f.el('queue-list').children[0].textContent, /小明/);
     f.update({ queue: ['other', 'me'], players: { me: { name: '小明' }, other: { name: '小華' } } });
-    assert.equal(f.el('current-player-indicator').textContent, '小華');
+    assert.match(f.el('queue-list').children[0].textContent, /小華/);
     assert.equal(f.el('prize-control').disabled, true);
     await f.el('prize-control').fire('click'); assert.equal(f.commands.length, 0);
     const host = await pageFixture({ dealer: true });

@@ -1,4 +1,5 @@
-#prize-management { --settings-line: #e7e5e2; --settings-muted: #686c72; --settings-tint: #f6f4f1; --settings-primary: #82705e; --settings-danger: #b4423b; padding: 28px 30px 0; overflow: visible; }
+#prize-management { --settings-line: #e7e5e2; --settings-muted: #686c72; --settings-tint: #f6f4f1; --settings-primary: #82705e; --settings-danger: #b4423b; --settings-padding: clamp(12px, 2.2vw, 32px); padding: 28px var(--settings-padding) 0; overflow: visible; }
+#prize-management > .settings-heading, #prize-management > .settings-columns, #prize-management > .settings-notice { max-width: 1200px; margin-inline: auto; }
 #prize-management [hidden] { display: none !important; }
 .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 42px; margin-bottom: 24px; }
 #prize-management h2, #lottery-area > h2 { font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.5; }
@@ -6,7 +7,7 @@
 .settings-heading-title { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .settings-heading-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .settings-badge { color: #766b5d; background: #ede9e3; padding: 4px 12px; border-radius: 5px; font-size: 15px; font-weight: 600; }
-.settings-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+.settings-columns { display: grid; grid-template-columns: minmax(0, 1.857fr) minmax(280px, 1fr); gap: 26px; }
 .settings-column { min-width: 0; }
 .settings-column + .settings-column { border-left: 1px solid var(--settings-line); padding-left: 26px; }
 .settings-column-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -15,7 +16,7 @@
 .settings-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; visibility: hidden; }
 .is-editing .settings-tools { visibility: visible; }
 #prize-management button { font: inherit; font-weight: 500; cursor: pointer; }
-.settings-button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 6px; border: 1px solid transparent; background: var(--settings-primary); color: #fff; white-space: nowrap; font-size: 15px !important; min-height: 42px; }
+.settings-button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 6px; border: 1px solid transparent; background: var(--settings-primary); color: #fff; white-space: nowrap; font-size: var(--type-standard, 20px); min-height: 42px; }
 .settings-button:hover:not(:disabled) { filter: brightness(.94); }
 .settings-button.secondary { background: #efefef; color: #444; }
 .settings-button.restore-defaults { background: #edf0ea; color: #596451; border-color: #cbd2c4; }
@@ -24,7 +25,7 @@
 .settings-button:disabled .settings-icon { filter: none; opacity: .4; }
 #prize-management :focus-visible { outline: 3px solid #a28b6e; outline-offset: 3px; }
 .settings-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 26px; gap: 12px; align-items: center; min-height: 60px; padding: 0 12px; }
-.settings-remove { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid #b9afa3; border-radius: 3px; color: #766c60; background: transparent; font-size: 13px !important; line-height: 1; }
+.settings-remove { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid #b9afa3; border-radius: 3px; color: #766c60; background: transparent; font-size: var(--type-small, 16px); line-height: 1; }
 .settings-remove:hover:not(:disabled) { background: #f6f4f1; border-color: #82705e; }
 .settings-remove:disabled { opacity: .55; cursor: not-allowed !important; }
 .settings-number { color: var(--settings-muted); font-size: 14px; }
@@ -40,22 +41,19 @@
 .settings-undo { display: flex; align-items: center; gap: 10px; min-height: 36px; margin-top: 12px; font-size: 14px; color: var(--settings-muted); }
 .settings-link { border: 0; color: var(--settings-primary); background: transparent; text-decoration: underline; padding: 6px; }
 .settings-notice { font-size: 14px; margin: 16px 0; color: var(--settings-danger); }
-.settings-footer { margin: 36px -30px 0; padding: 22px 30px; background: var(--settings-tint); border-top: 1px solid #ddd8d1; border-radius: 0 0 12px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; position: sticky; bottom: 0; z-index: 12; }
+.settings-footer { margin: 36px calc(-1 * var(--settings-padding)) 0; padding: 22px var(--settings-padding); background: var(--settings-tint); border-top: 1px solid #ddd8d1; border-radius: 0 0 12px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; position: sticky; bottom: 0; z-index: 12; }
 .settings-status { font-weight: 600; color: var(--settings-danger); font-size: 16px; }
 .settings-status.saved { color: #4b715a; }
 .settings-hint { font-size: 14px; color: var(--settings-muted); margin-top: 3px; }
 .settings-footer-actions { display: flex; gap: 12px; flex-shrink: 0; }
 .settings-footer .settings-button { min-width: 88px; padding: 12px 20px; }
 #prize-management:not(.is-editing) { padding-bottom: 26px; }
-@media (min-width: 1100px) {
-    .settings-column-top { flex-wrap: nowrap; }
-}
-@media (max-width: 800px) {
-    #prize-management { padding: 22px 18px 0; }
+@media (max-width: 960px) {
+    #prize-management { padding-top: 22px; }
     #prize-management h2, #lottery-area > h2 { font-size: 23px; }
     .settings-columns { grid-template-columns: 1fr; gap: 28px; }
     .settings-column + .settings-column { border-left: 0; padding-left: 0; }
-    .settings-footer { margin: 24px -18px 0; padding: 16px 18px; }
+    .settings-footer { margin-top: 24px; padding-block: 16px; }
 }
 @media (max-width: 480px) {
     .settings-heading { align-items: flex-start; flex-wrap: wrap; }

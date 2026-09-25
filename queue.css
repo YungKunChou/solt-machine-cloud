@@ -1,4 +1,4 @@
-#dealer-share-info .room-share-row { display: grid; grid-template-columns: 128px 112px; justify-content: center; align-items: center; gap: 24px; margin-top: 8px; width: 100%; }
+#dealer-share-info .room-share-row { display: grid; grid-template-columns: 128px minmax(0, 112px); justify-content: center; align-items: center; gap: clamp(12px, 2vw, 24px); margin-top: 8px; width: 100%; }
 #dealer-share-info #qrcode { box-sizing: border-box; width: 128px; height: 128px; margin: 0; }
 #qrcode canvas, #qrcode img { max-width: 100%; max-height: 100%; }
 #room-url-input { box-sizing: border-box; width: 100%; min-width: 0; height: 112px; margin: 0; padding: 8px; resize: none; text-align: left; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; overflow-y: auto; }
@@ -16,6 +16,7 @@
 .queue-remove:focus-visible { outline: 2px solid #82705e; outline-offset: 2px; }
 .queue-remove:disabled { opacity: .55; cursor: not-allowed; }
 .queue-locked { display: inline-flex; align-items: center; gap: 6px; color: #827667; font-size: 13px; white-space: nowrap; }
+.queue-turn-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .queue-icon { display: inline-block; width: 15px; height: 15px; background: currentColor; mask: url('assets/icons/lock-fill.svg') center / contain no-repeat; flex-shrink: 0; }
 .queue-empty { color: #73716d; font-size: 14px; text-align: center; padding: 16px 0; }
 .queue-feedback { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; background: #f6f4f1; color: #766c60; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -24,7 +25,7 @@
 .queue-spectator-notice { border: 1px solid #e7e5e2; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #695b4a; background: #f6f4f1; font-size: 15px; }
 .queue-spectator-notice[hidden] { display: none; }
 
-@media (max-width: 1023px) {
+@media (max-width: 1199.98px) {
     #room-info { display: contents; }
     #dealer-share-info { order: 0; }
     #slot-machine-wrapper { order: 1; }

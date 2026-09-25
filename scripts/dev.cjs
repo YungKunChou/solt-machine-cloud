@@ -7,35 +7,13 @@ const readline = require('node:readline');
 const net = require('node:net');
 const { createHash } = require('node:crypto');
 const { backendReady } = require('./backend-ready.cjs');
+const { createPublicFileHandler } = require('./public-files.cjs');
 
 const root = path.resolve(__dirname, '..');
 const website = 'http://127.0.0.1:8080';
 const projectId = createHash('sha256').update(fs.realpathSync(root).toLowerCase()).digest('hex');
 const shouldOpen = process.argv.includes('--open');
-const publicFiles = new Map([
-    ['index.html', 'text/html; charset=utf-8'],
-    ['slot-machine.html', 'text/html; charset=utf-8'],
-    ['manual.html', 'text/html; charset=utf-8'],
-    ['config.js', 'text/javascript; charset=utf-8'],
-    ['room-session.js', 'text/javascript; charset=utf-8'],
-    ['history-store.js', 'text/javascript; charset=utf-8'],
-    ['history-ui.js', 'text/javascript; charset=utf-8'],
-    ['history.css', 'text/css; charset=utf-8'],
-    ['settings-rules.js', 'text/javascript; charset=utf-8'],
-    ['settings-store.js', 'text/javascript; charset=utf-8'],
-    ['settings-editor.js', 'text/javascript; charset=utf-8'],
-    ...['game-protocol.js', 'reel-motion.js', 'server-clock.js', 'reel-player.js', 'game-client.js', 'game-music.js'].map(file => [file, 'text/javascript; charset=utf-8']),
-    ['settings.css', 'text/css; charset=utf-8'],
-    ['queue.css', 'text/css; charset=utf-8'],
-    ['machine.css', 'text/css; charset=utf-8'],
-    ['assets/design/slot-machine-compact-v2.png', 'image/png'],
-    ['assets/icons/plus.svg', 'image/svg+xml'],
-    ['assets/icons/trash.svg', 'image/svg+xml'],
-    ['assets/icons/lock-fill.svg', 'image/svg+xml'],
-    ['assets/icons/check-circle-fill.svg', 'image/svg+xml'],
-    ['Lobby.jpg', 'image/jpeg'],
-    ['slot-machine.png', 'image/png']
-]);
+const servePublicFile = createPublicFileHandler(root);
 
 let backend;
 let stopping = false;
@@ -48,25 +26,7 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ app: 'lottery-local-dev', projectId, ready }));
         return;
     }
-    const filename = pathname === '/' ? 'index.html' : pathname.slice(1);
-    if (!['GET', 'HEAD'].includes(req.method) || !publicFiles.has(filename)) {
-        res.writeHead(404);
-        res.end('Not found');
-        return;
-    }
-    fs.readFile(path.join(root, filename), (error, content) => {
-        if (error) {
-            res.writeHead(500);
-            res.end('Unable to read local file');
-            return;
-        }
-        res.writeHead(200, {
-            'Content-Type': publicFiles.get(filename),
-            'Content-Length': content.length,
-            'Cache-Control': 'no-store'
-        });
-        res.end(req.method === 'HEAD' ? undefined : content);
-    });
+    servePublicFile(req, res);
 });
 
 function stop(code = 0) {
