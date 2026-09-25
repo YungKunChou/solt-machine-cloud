@@ -58,11 +58,12 @@
     <link rel="stylesheet" href="settings.css">
     <link rel="stylesheet" href="queue.css">
     <link rel="stylesheet" href="machine.css">
+    <link rel="stylesheet" href="theme.css">
     <script src="settings-rules.js"></script>
     <script src="settings-store.js"></script>
     <script src="settings-editor.js"></script>
 </head>
-<body class="p-4 sm:p-8">
+<body class="game-page p-4 sm:p-8">
 
     <div class="max-w-6xl mx-auto">
        <header class="text-center mb-10">
@@ -86,7 +87,7 @@
         <div id="lottery-area" class="section-container">
             <h2>拉霸抽獎</h2>
             <p id="queue-spectator-notice" class="queue-spectator-notice" role="status" hidden></p>
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
+            <div id="participant-name-field" class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-1">
                 <input type="text" id="participant-name" placeholder="在此輸入姓名…" aria-label="玩家姓名" class="input-field w-full sm:w-2/3">
             </div>
             <div id="draw-status" class="draw-status" data-kind="connecting" role="status" aria-live="polite" aria-atomic="true">

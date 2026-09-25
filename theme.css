@@ -1,0 +1,83 @@
+/* Shared lobby and game palette; layout and game state styles remain local. */
+:root {
+    --room-warm-white: #faf7f2;
+    --room-surface: #fffdf9;
+    --room-coffee: #39291b;
+    --room-muted: #786b5b;
+    --room-gold: #c8ae7d;
+    --room-gold-hover: #d8bf91;
+    --room-gold-edge: #aa8a54;
+    --room-line: #e7ded0;
+    --room-tint: #f3eee5;
+    --room-focus: #84602b;
+}
+
+/* The photograph continues to provide the lobby's depth and lighting. */
+.lobby-page h1 { color: var(--room-warm-white); }
+.lobby-page #create-room-btn {
+    color: var(--room-coffee);
+    background: linear-gradient(145deg, #e2cca5, var(--room-gold));
+    border-color: #ead9b9;
+    text-shadow: none;
+    box-shadow: 0 4px 14px rgba(57, 41, 27, .3), inset 0 1px 1px rgba(255, 253, 249, .55);
+}
+.lobby-page #create-room-btn:hover:not(:disabled) { background: linear-gradient(145deg, #ecdbbd, var(--room-gold-hover)); }
+.lobby-page #create-room-btn:disabled { background: var(--room-tint); border-color: var(--room-line); color: var(--room-muted); box-shadow: none; }
+.lobby-page #create-room-btn:focus-visible { outline: 3px solid var(--room-warm-white); outline-offset: 4px; }
+.lobby-page .history-entry { background: var(--room-warm-white); color: var(--room-coffee); border-color: var(--room-line); }
+.lobby-page .history-entry:hover { background: #eee3d0; }
+.lobby-page .history-home-hint { color: #e7ded0; }
+
+.game-page { background-color: var(--room-warm-white); color: var(--room-coffee); }
+.game-page .section-container { background-color: var(--room-surface); border-color: var(--room-line); box-shadow: 0 3px 12px rgba(57, 41, 27, .035); }
+.game-page #lottery-area { border-color: transparent; box-shadow: none; }
+.game-page #room-info { box-shadow: none; }
+.game-page h2, .game-page h3, .game-page h4, .game-page .page-title-row h1 { color: var(--room-coffee); border-color: var(--room-line); }
+.game-page header p, .game-page header a { color: var(--room-muted); }
+.game-page header a:hover { color: var(--room-coffee); }
+.game-page .btn { box-shadow: none; border: 1px solid transparent; }
+.game-page .btn-primary, .game-page .machine-control { background: var(--room-gold); border-color: var(--room-gold-edge); color: var(--room-coffee); }
+.game-page .btn-primary:hover:not(:disabled), .game-page .machine-control:hover:not(:disabled) { background: var(--room-gold-hover); box-shadow: none; transform: none; }
+.game-page .btn-secondary { background: var(--room-warm-white); border-color: var(--room-line); color: var(--room-muted); }
+.game-page .btn-secondary:hover:not(:disabled) { background: var(--room-tint); color: var(--room-coffee); }
+.game-page .btn:disabled, .game-page .machine-control:disabled { background: var(--room-tint); border-color: var(--room-line); color: var(--room-muted); box-shadow: none; }
+.game-page .btn:focus-visible, .game-page .machine-control:focus-visible, .game-page .lever:focus-visible { outline: 3px solid var(--room-focus); outline-offset: 3px; }
+.game-page .input-field { color: var(--room-coffee); background: var(--room-surface); border-color: var(--room-line); }
+.game-page .input-field::placeholder { color: var(--room-muted); opacity: 1; }
+.game-page .input-field:focus { border-color: var(--room-focus); box-shadow: 0 0 0 3px rgba(200, 174, 125, .25); }
+.game-page .input-field:disabled { background: var(--room-tint); color: var(--room-muted); }
+.game-page .current-player-indicator { color: var(--room-coffee); }
+.game-page .current-player-indicator::before, .game-page .machine-hint { color: var(--room-muted); }
+/* A low, soft contact shadow anchors the transparent machine artwork. */
+.game-page .slot-machine::before { content: ''; position: absolute; z-index: -1; left: 16%; bottom: 1%; width: 68%; height: 5%; background: radial-gradient(ellipse, rgba(57, 41, 27, .15), rgba(57, 41, 27, 0) 70%); pointer-events: none; }
+
+/* Keep QR contrast while warming the surrounding queue and winner list. */
+.game-page #qrcode { background: #fff; }
+.game-page #queue-section, .game-page #dealer-share-info, .game-page #winners-table > div { border-color: var(--room-line); }
+.game-page #winners-table-container, .game-page #queue-list .queue-active { background: var(--room-tint); }
+.game-page #queue-count, .game-page .queue-number, .game-page .queue-subtitle, .game-page .queue-locked, .game-page .queue-empty, .game-page #winners-table .text-gray-500 { color: var(--room-muted); }
+.game-page .queue-remove { color: var(--room-muted); border-color: var(--room-line); }
+.game-page .queue-remove:hover:not(:disabled) { color: var(--room-coffee); background: var(--room-tint); border-color: var(--room-gold-edge); }
+.game-page .queue-spectator-notice, .game-page .queue-feedback { color: var(--room-muted); background: var(--room-tint); border-color: var(--room-line); }
+.game-page .queue-feedback[data-kind="error"] { color: #993e35; }
+
+.game-page #prize-management { --settings-line: var(--room-line); --settings-muted: var(--room-muted); --settings-tint: var(--room-tint); --settings-primary: var(--room-focus); }
+.game-page .settings-badge { color: var(--room-muted); background: var(--room-tint); }
+.game-page .settings-button { color: var(--room-coffee); background: var(--room-gold); border-color: var(--room-gold-edge); }
+.game-page .settings-button.secondary, .game-page .settings-button.restore-defaults { color: var(--room-muted); background: var(--room-warm-white); border-color: var(--room-line); }
+.game-page .settings-button:hover:not(:disabled) { background: var(--room-gold-hover); filter: none; }
+.game-page .settings-button.secondary:hover:not(:disabled), .game-page .settings-button.restore-defaults:hover:not(:disabled) { background: var(--room-tint); }
+.game-page .settings-button:disabled { color: var(--room-muted); background: var(--room-tint); border-color: var(--room-line); }
+.game-page .settings-icon { filter: none; }
+.game-page .settings-input { border-bottom-color: var(--room-line); }
+.game-page .settings-input:focus { border-bottom-color: var(--room-focus); }
+.game-page .settings-input[aria-invalid="true"] { border-bottom-color: var(--settings-danger); }
+.game-page #prizes-settings-rows .settings-value, .game-page #prizes-settings-rows .settings-input { color: var(--room-coffee); }
+.game-page #quantities-settings-rows .settings-value, .game-page #quantities-settings-rows .settings-input { color: #65471e; }
+.game-page .settings-footer { border-color: var(--room-line); }
+
+/* The lobby's history dialog uses the same surfaces and primary action. */
+.lobby-page .history-dialog { color: var(--room-coffee); background: var(--room-surface); border-color: var(--room-line); }
+.lobby-page .history-dialog h2, .lobby-page .history-dialog .history-close { color: var(--room-coffee); }
+.lobby-page .history-dialog .history-primary { color: var(--room-coffee); background: var(--room-gold); border-color: var(--room-gold-edge); }
+.lobby-page .history-dialog .history-primary:hover { background: var(--room-gold-hover); }

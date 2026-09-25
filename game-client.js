@@ -225,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderControls() {
         const me = state?.players[participantId];
         input.disabled = !joined || dealer || me?.removed || me?.completed || state?.round?.playerId === participantId;
+        el('participant-name-field').hidden = dealer;
         input.placeholder = dealer ? '您是莊家，不參加抽獎' : me?.removed ? '目前為觀看模式' : '在此輸入姓名…';
         for (const type of P.TYPES) {
             const lever = el(type === 'prize' ? 'lever-left' : 'lever-right');
