@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>左側拉桿｜三個姿態</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f2ec; color: #392c20; font-family: system-ui, "Microsoft JhengHei", sans-serif; }
+    main { max-width: 1380px; margin: auto; padding: 32px 24px 40px; }
+    .eyebrow { margin: 0 0 8px; font-size: 13px; color: #776650; letter-spacing: .12em; }
+    h1 { margin: 0 0 12px; font-size: clamp(24px, 4vw, 34px); }
+    .intro { margin: 0 0 24px; line-height: 1.8; }
+    .comparison { overflow-x: auto; border: 1px solid #ded6c9; border-radius: 16px; background: white; }
+    .sheet { min-width: 780px; }
+    .labels { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+    .label { padding: 20px 16px 12px; }
+    .label strong { display: block; font-size: 21px; }
+    .label span { display: block; margin-top: 6px; color: #79664e; font-size: 14px; }
+    img { display: block; width: 100%; height: auto; }
+    .notes { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; padding: 0; list-style: none; }
+    .notes li { padding: 18px 24px 24px; line-height: 1.7; }
+    .notes strong { display: block; margin-bottom: 4px; }
+    footer { margin-top: 18px; font-size: 14px; color: #79664e; line-height: 1.8; }
+    a { color: #65471e; text-underline-offset: 3px; }
+    a:focus-visible { outline: 3px solid #84602b; outline-offset: 4px; }
+    @media (max-width: 640px) { main { padding: 24px 14px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">左側拉桿・姿態提案 02｜球頭透視調整</p>
+    <h1>越靠近玩家，紅色球頭逐步放大</h1>
+    <p class="intro">沿用選定的案二造型，從左到右比較直立、半拉、拉到底。球頭隨拉桿靠近而逐步放大，並保留桿根向前下方翻轉的接合造型。</p>
+    <section class="comparison" aria-label="左側拉桿三個姿態對照" tabindex="0">
+      <div class="sheet">
+        <div class="labels" aria-hidden="true">
+          <div class="label"><strong>01　直立</strong><span>原始球頭大小</span></div>
+          <div class="label"><strong>02　半拉</strong><span>球頭略微放大</span></div>
+          <div class="label"><strong>03　拉到底</strong><span>球頭更靠近、更大</span></div>
+        </div>
+        <img src="lever-left-three-poses-v2.png" width="1536" height="1024" alt="左側拉桿球頭透視對照：左圖直立紅球維持原始大小；中圖半拉的紅球略微放大、桿身透視縮短；右圖拉到底的紅球進一步放大，桿根保持向軸套前下方翻轉。球頭皆保持圓形。">
+        <ol class="notes">
+          <li><strong>直立</strong>保留起始球頭大小，作為遠近比例的基準。</li>
+          <li><strong>半拉</strong>紅球略微放大並保持圓形，頸部接合隨透視自然銜接。</li>
+          <li><strong>拉到底</strong>紅球放大更明顯，搭配短縮桿身與向下翻轉的接合處，表現朝玩家靠近。</li>
+        </ol>
+      </div>
+    </section>
+    <footer>此為 ImageGen 製作的靜態姿態提案，非逐幀動畫或精密比例圖，尚未套用到遊戲。窄螢幕可左右捲動對照圖。<br><a href="lever-left-three-poses-v2.png" target="_blank" rel="noopener">開啟新版完整對照圖</a> · <a href="lever-left-three-poses-v1.png" target="_blank" rel="noopener">查看調整前版本</a></footer>
+  </main>
+</body>
+</html>

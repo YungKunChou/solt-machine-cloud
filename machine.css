@@ -34,23 +34,63 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 .quantity-item { font-size: clamp(36px, 14cqw, 64px); font-variant-numeric: tabular-nums; }
 /* Curve and blur affect the label only; cell geometry remains authoritative. */
 .reel-label { transform-origin: center center; }
-.lever { --shaft-scale: 1; --ball-offset: 0%; position: absolute; top: 24.8619%; width: 8.9779%; height: 29.0055%; border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.lever {
+    --shaft-scale: 1; --shaft-width: 1; --root-offset: 0%;
+    --ball-offset: 0%; --ball-scale: 1;
+    --socket-offset: 0%; --socket-face: 1; --socket-width: 1;
+    --drum-position: 60.743%; --lever-pivot: 56%; --ball-center: 50.77%;
+    position: absolute; top: 24.8619%; width: 8.9779%; height: 29.0055%;
+    border: 0; padding: 0; background: transparent; cursor: pointer;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
 #lever-left { left: 3.0387%; }
-#lever-right { right: 3.0387%; }
+#lever-right { right: 3.0387%; --lever-pivot: 44%; --ball-center: 49.23%; }
 .lever::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
-.lever-art { position: absolute; inset: 0; pointer-events: none; background-image: url('assets/design/slot-machine-compact-v2.png'); background-repeat: no-repeat; background-size: 1113.8462% 344.7619%; transform-origin: 52% 100%; transition: transform .4s ease-in-out, filter .2s ease; }
+.lever-art { position: absolute; inset: 0; pointer-events: none; background-image: url('assets/design/slot-machine-compact-v2.png'); background-repeat: no-repeat; background-size: 1113.8462% 344.7619%; transform-origin: var(--lever-pivot) 100%; transition: transform .4s ease-in-out, filter .2s ease; }
 #lever-left .lever-art { background-position: 3.3384% 35.0195%; }
 #lever-right .lever-art { background-position: 96.6616% 35.0195%; }
-/* Split the 315px handle crop at y=120px, just below the ball.
-   Only the 195px shaft is foreshortened. The ball translates by
-   (195 / 315) * (1 - scale), keeping its original shape and meeting the shaft
-   throughout both transitions (same duration and easing, including reversals). */
-#lever-left .lever-shaft { clip-path: polygon(0 38.0952%, 96.92% 38.0952%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 100%, 0 100%); }
-#lever-right .lever-shaft { clip-path: polygon(3.08% 38.0952%, 100% 38.0952%, 100% 100%, 23.85% 100%, 23.85% 93.65%, 3.08% 79.37%); }
-.lever-shaft { transform: scaleY(var(--shaft-scale)); }
-.lever-ball { clip-path: inset(0 0 61.9048% 0); transform: translateY(var(--ball-offset)); }
-.lever.pulled { --shaft-scale: .5; --ball-offset: 30.9524%; }
-.lever.returning { --shaft-scale: .7431448; --ball-offset: 15.9006%; }
+/* Reuse the original silver barrel texture beneath the moving socket. This
+   covers the painted stationary socket without moving the cabinet's brass
+   bearing flange. Sample a clean 61 x 90px strip below the old attachment. */
+.lever-drum {
+    position: absolute; top: 98.0952%; left: 32.3077%; width: 46.9231%; height: 38.0952%;
+    pointer-events: none; overflow: hidden;
+    background: url('assets/design/slot-machine-compact-v2.png') no-repeat;
+    background-size: 2373.7705% 1206.6667%;
+    background-position: 6.2004% var(--drum-position);
+    clip-path: inset(0 round 16% 8% 8% 16%);
+    transition: background-position .4s ease-in-out;
+}
+#lever-right .lever-drum { left: 20.7692%; background-position-x: 93.7996%; clip-path: inset(0 round 8% 16% 16% 8%); }
+/* The socket gets a taller crop to include the original root ring. Its face
+   opens vertically as it rolls from the barrel's top toward its front. */
+.lever-socket {
+    bottom: auto; height: 110%; background-size: 1113.8462% 313.4199%;
+    clip-path: ellipse(22% 4.5% at var(--lever-pivot) 89.5%);
+    transform-origin: var(--lever-pivot) 89.5%;
+    transform: translateY(var(--socket-offset)) scale(var(--socket-width), var(--socket-face));
+}
+#lever-left .lever-socket, #lever-right .lever-socket { background-position-y: 36.5112%; }
+/* Split at y=120px beneath the ball; the visible shaft ends inside the socket.
+   All pieces use the same easing, so their joins stay aligned on reversals.
+   Ball offset = root offset + (195 / 315) * (1 - shaft scale).
+   Scale the sphere about its neck to keep it round and attached. */
+#lever-left .lever-shaft { clip-path: polygon(0 38.0952%, 96.92% 38.0952%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 96.19%, 0 96.19%); }
+#lever-right .lever-shaft { clip-path: polygon(3.08% 38.0952%, 100% 38.0952%, 100% 96.19%, 23.85% 96.19%, 23.85% 93.65%, 3.08% 79.37%); }
+.lever-shaft { transform: translateY(var(--root-offset)) scale(var(--shaft-width), var(--shaft-scale)); }
+.lever-ball { clip-path: inset(0 0 61.9048% 0); transform-origin: var(--ball-center) 38.0952%; transform: translateY(var(--ball-offset)) scale(var(--ball-scale)); }
+.lever.pulled {
+    --shaft-scale: .32; --shaft-width: 1.12; --root-offset: 17.4603%;
+    --ball-offset: 59.5556%; --ball-scale: 1.25;
+    --socket-offset: 15.8730%; --socket-face: 1.85; --socket-width: 1.08;
+    --drum-position: 61.2450%;
+}
+.lever.returning {
+    --shaft-scale: .66; --shaft-width: 1.06; --root-offset: 6.9841%;
+    --ball-offset: 28.0317%; --ball-scale: 1.12;
+    --socket-offset: 6.3492%; --socket-face: 1.4; --socket-width: 1.04;
+    --drum-position: 60.9438%;
+}
 .lever:disabled { cursor: default; }
 .lever:enabled:hover .lever-art { filter: brightness(1.12); }
 .lever:focus-visible { outline: 3px solid #84602b; outline-offset: 4px; border-radius: 8px; }
@@ -92,4 +132,4 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
     .draw-status { min-height: 126px; padding: 12px; }
 }
 @media (max-width: 360px) { .reel-item { font-size: 20px; } .quantity-item { font-size: 32px; } }
-@media (prefers-reduced-motion: reduce) { .lever-art { transition: none; } .window-reveal-glow.winner-flash { animation: none; opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .lever-art, .lever-drum { transition: none; } .window-reveal-glow.winner-flash { animation: none; opacity: .55; } }
