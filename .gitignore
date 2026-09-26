@@ -5,6 +5,9 @@ node_modules/
 !.env.example
 *.log
 
+# Preserve local-only archives without publishing old backend files or room backups.
+/歷史封存/**/local-only/
+
 # Original local reference files; the root files are the active application.
 /後台/
 /備份/

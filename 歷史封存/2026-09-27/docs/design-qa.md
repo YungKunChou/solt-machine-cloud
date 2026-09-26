@@ -8,7 +8,7 @@ final result: passed
 
 - Source visual truth：`C:/Users/YKC/.codex/generated_images/01a0d166-f646-7ca2-9151-5cf684b4374c/exec-40fb6b21-7556-49cf-941d-31536adc2761.png`，使用者選定第 2 款。
 - 本機頁面：`http://127.0.0.1:8080/` → 建立房間 → 編輯設定。
-- 實作桌面截圖：`C:/tmp/Lottery 雙滾輪雲端版/.local-setup/qa/batch-editor-desktop.jpg`。
+- 實作桌面截圖：[batch-editor-desktop.jpg](../local-only/setup/qa/batch-editor-desktop.jpg)（僅本機保存，2026-09-27 隨歷史資料搬移）。
 - 手機截圖：同目錄 `batch-editor-mobile-top.jpg`、`batch-editor-mobile-bottom.jpg`。
 - 深色截圖：同目錄 `batch-editor-dark.jpg`。
 - 桌面 CSS viewport：1444 × 1050；面板 CSS 寬 1380、高約 758；來源圖 1701 × 925，預期面板約 1380 × 750。

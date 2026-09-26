@@ -33,7 +33,8 @@ npm.cmd run dev
 
 - `index.html`：入口與建立房間。
 - `slot-machine.html`：抽獎介面。
-- `machine.css`、`assets/design/slot-machine-compact-v2.png`：定稿機台、加高視窗與響應式雙滾輪；同一張透明圖片分層呈現機身與可動拉桿，保留原始質感。
+- `machine.css`、`assets/design/slot-machine-compact-v3-champagne.png`：目前使用的香檳金刻字機台與響應式雙滾輪；同一張 1448 × 1086 透明圖片分層呈現機身、桿身與轉軸。
+- `assets/design/lever-ball-complete-v1.png`：拉桿完整球頭補圖，與原圖高光分層疊合。
 - `settings-editor.js`、`settings.css`：獎項與數量的批次編輯介面。
 - `settings-rules.js`：前後端共用的設定驗證。
 - `settings-store.js`：此瀏覽器最新一版獎項與數量設定；新活動建立時套用。
@@ -44,16 +45,18 @@ npm.cmd run dev
 - `啟動本機抽獎.cmd`、`scripts/start-local.cjs`：Windows 一鍵啟動與自動開啟瀏覽器。
 - `index.js`：正式後端，Render 使用此根目錄檔案。
 - `package.json`、`package-lock.json`：後端套件與本機啟動指令。
-- `scripts/dev.cjs`：只用於本機啟動，提供明確允許的前端檔案；新增前端資源時請更新其 publicFiles 清單。
+- `scripts/dev.cjs`：只用於本機啟動；前端資源允許清單定義於 `scripts/public-files.cjs`，新增或移除資源時須同步更新。
 - `manual.html`：操作與資料保存說明。
 - `game-server.cjs`、`round-engine.cjs`：主持權限、穩定參加者、回合排程與公開快照。
 - `game-protocol.js`、`reel-motion.js`：前後端共用的協定、時間參數與運動模型。
 - `game-client.js`、`server-clock.js`、`reel-player.js`：操作、校時及所有角色共用的循環播放器。
 - `game-music.js`：原有背景音樂操作。
 
-本機 `.local-setup/original/` 保存整理前原始檔案（不含 node_modules）；`.local-setup/upstream/` 保存取得的 GitHub 檔案快照。`後台/` 及其他舊文件保留作參考並已排除於 Git，後續請修改根目錄正式檔案。
+已停用的素材、設計提案、舊程式與文件集中在 [歷史封存](歷史封存/README.md)，依日期與用途分類；正式頁面不載入封存內容。
 
-本次整理以 GitHub `1864e4d22fa98c95bda1865f2b43b46e1c35b1ef` 為基礎，依使用者選擇保留雲端的手機自適應版面、無獎項圖示與預設數量 1／2／3。原本本機固定版面、有圖示及數量 1／2／3／2／1 的版本保存在上述備份。開發分支為 `local/setup-development`，本次未提交或推送。
+`歷史封存/2026-09-27/local-only/setup/original/` 保存最初本機檔案，`upstream/` 保存取得的 GitHub 快照；同層 `backups/` 保留房間資料備份。舊後端與舊說明文件也納入 `local-only/`，延續原先排除於 Git 的設定。這些本機資料須另外備份，不會隨儲存庫同步。
+
+最初本機整理以 GitHub `1864e4d22fa98c95bda1865f2b43b46e1c35b1ef` 為基礎；原本固定版面、有圖示及數量 1／2／3／2／1 的版本保存在上述 `original/`。後續開發請修改根目錄正式檔案。
 
 ## 已核對的部署設定
 
