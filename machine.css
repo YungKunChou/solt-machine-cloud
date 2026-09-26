@@ -1,4 +1,4 @@
-/* Approved v2 artwork: 1448 × 1086. All crops use the same image and scale.
+/* B1 engraving baked into v3 artwork: 1448 × 1086. All crops share one image.
    Body excludes only the two handles; their original pixels animate separately. */
 body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 .game-page-shell { width: 100%; max-width: 1440px; margin-inline: auto; }
@@ -46,7 +46,7 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 #lever-left { left: 3.0387%; }
 #lever-right { right: 3.0387%; --lever-pivot: 44%; --ball-center: 49.23%; }
 .lever::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
-.lever-art { position: absolute; inset: 0; pointer-events: none; background-image: url('assets/design/slot-machine-compact-v2.png'); background-repeat: no-repeat; background-size: 1113.8462% 344.7619%; transform-origin: var(--lever-pivot) 100%; transition: transform .4s ease-in-out, filter .2s ease; }
+.lever-art { position: absolute; inset: 0; pointer-events: none; background-image: url('assets/design/slot-machine-compact-v3-champagne.png'); background-repeat: no-repeat; background-size: 1113.8462% 344.7619%; transform-origin: var(--lever-pivot) 100%; transition: transform .4s ease-in-out, filter .2s ease; }
 #lever-left .lever-art { background-position: 3.3384% 35.0195%; }
 #lever-right .lever-art { background-position: 96.6616% 35.0195%; }
 /* Reuse the original silver barrel texture beneath the moving socket. This
@@ -55,7 +55,7 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 .lever-drum {
     position: absolute; top: 98.0952%; left: 32.3077%; width: 46.9231%; height: 38.0952%;
     pointer-events: none; overflow: hidden;
-    background: url('assets/design/slot-machine-compact-v2.png') no-repeat;
+    background: url('assets/design/slot-machine-compact-v3-champagne.png') no-repeat;
     background-size: 2373.7705% 1206.6667%;
     background-position: 6.2004% var(--drum-position);
     clip-path: inset(0 round 16% 8% 8% 16%);

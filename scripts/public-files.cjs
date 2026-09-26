@@ -9,7 +9,8 @@ const publicFiles = new Map([
         'reel-motion.js', 'server-clock.js', 'reel-player.js', 'game-client.js', 'game-music.js'].map(file => [file, 'text/javascript; charset=utf-8']),
     ...['history.css', 'settings.css', 'queue.css', 'machine.css', 'theme.css',
         'typography.css'].map(file => [file, 'text/css; charset=utf-8']),
-    ...['assets/design/slot-machine-compact-v2.png', 'assets/design/lever-ball-complete-v1.png', 'slot-machine.png'].map(file => [file, 'image/png']),
+    ...['assets/design/slot-machine-compact-v2.png', 'assets/design/slot-machine-compact-v3-champagne.png',
+        'assets/design/lever-ball-complete-v1.png', 'slot-machine.png'].map(file => [file, 'image/png']),
     ...['plus', 'trash', 'lock-fill', 'check-circle-fill'].map(name => [`assets/icons/${name}.svg`, 'image/svg+xml']),
     ['Lobby.jpg', 'image/jpeg']
 ]);
