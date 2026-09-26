@@ -78,7 +78,7 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 .lever-shaft, .lever-head { position: absolute; inset: 0; pointer-events: none; transition: transform .4s ease-in-out; }
 .lever-shaft { z-index: 1; transform-origin: var(--lever-pivot) 100%; }
 #lever-left .lever-shaft-art { clip-path: polygon(0 40.6349%, 96.92% 40.6349%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 96.19%, 0 96.19%); }
-#lever-right .lever-shaft-art { clip-path: polygon(3.08% 40.6349%, 100% 40.6349%, 100% 96.19%, 23.85% 96.19%, 23.85% 93.65%, 3.08% 79.37%); }
+#lever-right .lever-shaft-art { clip-path: polygon(33.8462% 40.6349%,66.1538% 40.6349%,58.4615% 96.1905%,26.1538% 96.1905%); }
 .lever-shaft { transform: translateY(var(--root-offset)) scale(var(--shaft-width), var(--shaft-scale)); }
 /* A single continuous shaft crop avoids the sideways seam caused by translating
    a second copy of the slanted rod. Extend y=128..303 to y=90..303 about the
