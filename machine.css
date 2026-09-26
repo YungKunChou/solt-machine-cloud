@@ -36,7 +36,7 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 .reel-label { transform-origin: center center; }
 .lever {
     --shaft-scale: 1; --shaft-width: 1; --root-offset: 0%;
-    --ball-offset: 0%; --ball-scale: 1;
+    --ball-offset: 0%; --ball-scale: 1; --collar-retract: 0%;
     --socket-offset: 0%; --socket-face: 1; --socket-width: 1;
     --drum-position: 60.743%; --lever-pivot: 56%; --ball-center: 50.77%;
     position: absolute; top: 24.8619%; width: 8.9779%; height: 29.0055%;
@@ -71,28 +71,60 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
     transform: translateY(var(--socket-offset)) scale(var(--socket-width), var(--socket-face));
 }
 #lever-left .lever-socket, #lever-right .lever-socket { background-position-y: 36.5112%; }
-/* Split at y=120px beneath the ball; the visible shaft ends inside the socket.
-   All pieces use the same easing, so their joins stay aligned on reversals.
+/* Preserve the approved head path and scale, pivoted at crop y=120px.
    Ball offset = root offset + (195 / 315) * (1 - shaft scale).
-   Scale the sphere about its neck to keep it round and attached. */
-#lever-left .lever-shaft { clip-path: polygon(0 38.0952%, 96.92% 38.0952%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 96.19%, 0 96.19%); }
-#lever-right .lever-shaft { clip-path: polygon(3.08% 38.0952%, 100% 38.0952%, 100% 96.19%, 23.85% 96.19%, 23.85% 93.65%, 3.08% 79.37%); }
+   The collar is now independent, behind the complete sphere. All transforms
+   share easing/duration so reversals retain their current attachment pose. */
+.lever-shaft, .lever-head { position: absolute; inset: 0; pointer-events: none; transition: transform .4s ease-in-out; }
+.lever-shaft { z-index: 1; transform-origin: var(--lever-pivot) 100%; }
+#lever-left .lever-shaft-art { clip-path: polygon(0 40.6349%, 96.92% 40.6349%, 96.92% 79.37%, 76.15% 93.65%, 76.15% 96.19%, 0 96.19%); }
+#lever-right .lever-shaft-art { clip-path: polygon(3.08% 40.6349%, 100% 40.6349%, 100% 96.19%, 23.85% 96.19%, 23.85% 93.65%, 3.08% 79.37%); }
 .lever-shaft { transform: translateY(var(--root-offset)) scale(var(--shaft-width), var(--shaft-scale)); }
-.lever-ball { clip-path: inset(0 0 61.9048% 0); transform-origin: var(--ball-center) 38.0952%; transform: translateY(var(--ball-offset)) scale(var(--ball-scale)); }
+/* A single continuous shaft crop avoids the sideways seam caused by translating
+   a second copy of the slanted rod. Extend y=128..303 to y=90..303 about the
+   unchanged lower attachment: (303 - 90) / (303 - 128) = 213 / 175.
+   The extension remains behind the sphere throughout the existing motion. */
+.lever-shaft-art { transform-origin: var(--lever-pivot) 96.190476%; transform: scaleY(1.217142857); }
+.lever-head { z-index: 2; transform-origin: var(--ball-center) 38.0952%; transform: translateY(var(--ball-offset)) scale(var(--ball-scale)); }
+/* Start at source crop y=116, below the old ball's red rim at y=112..115.
+   Seat the metal cup 1px into the foreground sphere without moving the head. */
+.lever-collar { visibility: hidden; clip-path: inset(36.8254% 25% 59.3651% 25%); transform: translateY(calc(var(--collar-retract) - .317460%)); }
+.lever-sphere, .lever-ball-detail { position: absolute; inset: 0; pointer-events: none; }
+/* One silhouette clips both the complete sphere and the old highlight layer.
+   The collar is outside this foreground group, so it can retreat behind it. */
+.lever-head.ball-ready .lever-sphere { clip-path: ellipse(42.3077% 17.4603% at var(--ball-center) 20%); }
+.lever-head.ball-ready .lever-ball-detail { mask-image: radial-gradient(ellipse 42.3077% 17.4603% at var(--ball-center) 20%, #000 88%, transparent 98%); }
+/* Keep the intact original head until the complete sphere has loaded.
+   A missing/late image must never leave the old horizontal cut exposed. */
+.lever-ball { clip-path: inset(0 0 61.9048% 0); }
+.lever-head.ball-ready .lever-ball {
+    clip-path: inset(0 0 64.4444% 0);
+    mask-image: linear-gradient(to bottom, #000 34.2857%, transparent 35.5556%);
+}
+.lever-ball-fill {
+    visibility: hidden; position: absolute; inset: 0; pointer-events: none;
+    transition: filter .2s ease;
+}
+.lever-head.ball-ready .lever-ball-fill, .lever-head.ball-ready .lever-collar { visibility: visible; }
+/* The complete circle sits behind the original highlights, with no horizontal
+   mask on its lower edge. Its alpha supplies the continuous rounded outline. */
+/* Alpha-bounded sphere: x=101..1153, y=98..1140 in its 1254px canvas.
+   Map it to the original 110px sphere at crop y=8..118; no size/path change. */
+.lever-ball-fill img { position: absolute; max-width: none; width: 100.8628%; height: 42.025%; left: calc(var(--ball-center) - 50.4314%); top: -.7446%; }
 .lever.pulled {
     --shaft-scale: .32; --shaft-width: 1.12; --root-offset: 17.4603%;
-    --ball-offset: 59.5556%; --ball-scale: 1.25;
+    --ball-offset: 59.5556%; --ball-scale: 1.25; --collar-retract: -7.6190%;
     --socket-offset: 15.8730%; --socket-face: 1.85; --socket-width: 1.08;
     --drum-position: 61.2450%;
 }
 .lever.returning {
     --shaft-scale: .66; --shaft-width: 1.06; --root-offset: 6.9841%;
-    --ball-offset: 28.0317%; --ball-scale: 1.12;
+    --ball-offset: 28.0317%; --ball-scale: 1.12; --collar-retract: -1.9048%;
     --socket-offset: 6.3492%; --socket-face: 1.4; --socket-width: 1.04;
     --drum-position: 60.9438%;
 }
 .lever:disabled { cursor: default; }
-.lever:enabled:hover .lever-art { filter: brightness(1.12); }
+.lever:enabled:hover .lever-art, .lever:enabled:hover .lever-ball-fill { filter: brightness(1.12); }
 .lever:focus-visible { outline: 3px solid #84602b; outline-offset: 4px; border-radius: 8px; }
 #lottery-area > h2 { border-bottom: 0; text-align: center; }
 #participant-name { text-align: center; }
@@ -119,8 +151,12 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
 @keyframes winner-glow { 0%, 100% { opacity: 0; } 45%, 55% { opacity: 1; } }
 .window-reveal-glow.winner-flash { animation: winner-glow .8s 3; }
 @media (min-width: 1200px) {
-    #game-layout { display: grid; grid-template-columns: clamp(300px, 22vw, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
+    #game-layout { display: grid; grid-template-columns: clamp(330px, 24.2vw, 374px) minmax(0, 1fr); gap: 24px; align-items: start; }
     #room-info { width: auto; min-width: 0; padding: 16px; }
+    /* Give the wider sidebar mainly to names; prize and quantity widths stay
+       close to the previous 2:5:1 layout in the narrower sidebar. */
+    #winners-table > .grid { grid-template-columns: minmax(0, 3fr) minmax(0, 5fr) minmax(0, 1fr); }
+    #winners-table > .grid > div { grid-column: auto; min-width: 0; }
     /* Keep the tablet cap at 760px so entering two columns does not shrink it. */
     .slot-machine { width: min(900px, 100%); }
     #slot-machine-wrapper { position: sticky; top: 16px; }
@@ -132,4 +168,4 @@ body.game-page { padding: clamp(16px, 2.2vw, 32px); }
     .draw-status { min-height: 126px; padding: 12px; }
 }
 @media (max-width: 360px) { .reel-item { font-size: 20px; } .quantity-item { font-size: 32px; } }
-@media (prefers-reduced-motion: reduce) { .lever-art, .lever-drum { transition: none; } .window-reveal-glow.winner-flash { animation: none; opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .lever-art, .lever-drum, .lever-shaft, .lever-head, .lever-ball-fill { transition: none; } .window-reveal-glow.winner-flash { animation: none; opacity: .55; } }

@@ -7,8 +7,12 @@ const P = require('../game-protocol.js');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 async function pageFixture(options = {}) {
     const elements = new Map();
-    const el = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
+    const el = id => { if (['prize-control', 'quantity-control'].includes(id)) return null; if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
     el('qrcode').textContent = 'QR Code 生成中';
+    const qrCodes = [];
+    el('qr-dialog').open = false;
+    el('qr-dialog').showModal = () => { el('qr-dialog').open = true; };
+    el('qr-dialog').close = () => { el('qr-dialog').open = false; };
     el('draw-status').append(el('draw-status-label'), el('draw-status-message'));
     let monotonic = 1000;
     let submitSettings;
@@ -55,10 +59,10 @@ async function pageFixture(options = {}) {
         addEventListener(event, fn) { windowEvents[event] = fn; } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../game-client.js'), 'utf8'), { window, document, location,
         io: () => socket, crypto: require('node:crypto').webcrypto, URL, URLSearchParams, performance: { now: () => monotonic },
-        QRCode: function (root) { root.append(new Element()); }, setInterval() {}, setTimeout() {} });
+        QRCode: function (root, options) { qrCodes.push({ root, options }); root.append(new Element()); }, setInterval() {}, setTimeout() {} });
     const joining = handlers.connect();
     if (options.deferJoin) await flush(); else await joining;
-    return { el, handlers, requests, commands, socket, document, docEvents, archived, plays,
+    return { el, handlers, requests, commands, socket, document, docEvents, archived, plays, qrCodes,
         savedSettings, saveSettings: payload => submitSettings(payload),
         time(value) { monotonic = value; for (const notify of phaseHandlers) notify(); },
         get participantSession() { return participantSession; },
@@ -152,7 +156,7 @@ test('removed and completed participants never receive playable controls; missed
     await f.el('lever-left').fire('click'); assert.equal(f.commands.length, 0);
     const finished = await pageFixture({ state: { players: { me: { completed: true, name: '小明' } }, queue: ['someone'] } });
     assert.equal(finished.el('draw-status-message').textContent, '抽獎結果同步中，請稍候…');
-    assert.equal(finished.el('prize-control').disabled, true);
+    assert.equal(finished.el('lever-left').disabled, true);
 });
 test('completed player sees their own prize after reconnect and later draws, with prize names kept as literal text', async () => {
     const mine = { playerId: 'me', name: '小明', prize: '<咖啡 & 茶>', quantity: '3' };
@@ -163,7 +167,7 @@ test('completed player sees their own prize after reconnect and later draws, wit
     assert.equal(f.el('draw-status-message').textContent, '恭喜您抽中「<咖啡 & 茶>」× 3！');
     assert.equal(f.el('draw-status-message').children[1].textContent, '「<咖啡 & 茶>」× 3');
     assert.equal(f.el('draw-status-message').children[1].children.length, 0);
-    assert.equal(f.el('prize-control').disabled, true);
+    assert.equal(f.el('lever-left').disabled, true);
     f.update({ winners: [other] });
     assert.equal(f.el('draw-status-message').textContent, '抽獎結果同步中，請稍候…');
 });
@@ -209,44 +213,76 @@ test('QR generation replaces the placeholder instead of appending beside it', as
     assert.equal(f.el('qrcode').children.length, 1);
 });
 
-test('machine buttons and levers share pending locks, stop commands, and disconnect restrictions', async () => {
+test('dealer can reopen a single enlarged QR for the same sanitized room URL and dismiss the backdrop', async () => {
+    const f = await pageFixture({ dealer: true });
+    const dialog = f.el('qr-dialog');
+    assert.equal(f.el('qr-enlarge').disabled, false);
+    await f.el('qr-enlarge').fire('click');
+    assert.equal(dialog.open, true);
+    assert.equal(f.qrCodes.length, 2);
+    assert.equal(f.qrCodes[1].options.text, f.qrCodes[0].options);
+    assert.equal(f.qrCodes[1].options.text, 'http://local/slot-machine.html?room=test');
+    assert.equal(f.qrCodes[1].options.width, 640);
+    await dialog.fire('click', { target: f.el('qr-enlarged') });
+    assert.equal(dialog.open, true);
+    await dialog.fire('click');
+    assert.equal(dialog.open, false);
+    await f.el('qr-enlarge').fire('click');
+    assert.equal(dialog.open, true);
+    assert.equal(f.qrCodes.length, 2);
+    f.socket.disconnect();
+    assert.equal(dialog.open, false);
+    assert.equal(f.el('qr-enlarge').disabled, true);
+    await f.el('qr-enlarge').fire('click');
+    assert.equal(dialog.open, false);
+});
+
+test('players cannot open the dealer QR dialog', async () => {
+    const f = await pageFixture();
+    assert.equal(f.el('qr-enlarge').disabled, true);
+    await f.el('qr-enlarge').fire('click');
+    assert.equal(f.el('qr-dialog').open, false);
+    assert.equal(f.qrCodes.length, 1);
+});
+
+test('levers preserve pending locks, stop commands, and disconnect restrictions without secondary buttons', async () => {
     const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
-    const button = f.el('prize-control'), lever = f.el('lever-left');
+    const button = f.el('lever-left'), lever = f.el('lever-left');
     assert.equal(button.disabled, false);
-    assert.equal(button.textContent, '抽獎項');
+    assert.equal(button.attributes['aria-label'], '抽獎項');
     button.fire('click');
     assert.equal(button.disabled, true); assert.equal(lever.disabled, true);
-    assert.equal(button.textContent, '確認中…');
+    assert.equal(button.attributes['aria-label'], '獎項：確認中…');
     await lever.fire('click'); assert.equal(f.commands.length, 1);
     assert.equal(f.commands[0].event, 'startReel');
     const round = { id: 1, playerId: 'me', playerName: '小明', options: { prize: f.current.prizes, quantity: f.current.quantities },
         reels: { prize: { planId: 'p', stop: null }, quantity: null } };
     f.update({ round }); await f.reply();
-    assert.equal(button.textContent, '停止獎項'); assert.equal(button.disabled, false);
+    assert.equal(button.attributes['aria-label'], '停止獎項'); assert.equal(button.disabled, false);
     button.fire('click'); assert.equal(f.commands[0].event, 'stopReel');
     f.update({ round: { ...round, reels: { ...round.reels, prize: { planId: 'p', stop: { source: 'manual', stopAt: 3500 } } } } });
     await f.reply();
-    assert.equal(button.textContent, '減速中…'); assert.equal(button.disabled, true);
-    f.time(3500); assert.equal(button.textContent, '已停止');
+    assert.equal(button.attributes['aria-label'], '獎項：減速中…'); assert.equal(button.disabled, true);
+    f.time(3500); assert.equal(button.attributes['aria-label'], '獎項：已停止');
     f.socket.disconnect();
-    assert.equal(f.el('quantity-control').disabled, true);
-    await f.el('quantity-control').fire('click'); assert.equal(f.commands.length, 0);
+    assert.equal(f.el('lever-right').disabled, true);
+    await f.el('lever-right').fire('click'); assert.equal(f.commands.length, 0);
 });
 
 test('previous result does not label the next draw stopped, and host/waiting controls stay disabled', async () => {
     const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
     f.update({ lastRound: { id: 1, settingsRevision: 0, options: { prize: f.current.prizes, quantity: f.current.quantities },
         reels: { prize: { planId: 'previous', stop: { stopAt: 900 } }, quantity: null } } });
-    assert.equal(f.el('prize-control').textContent, '抽獎項');
-    assert.equal(f.el('prize-control').disabled, false);
+    assert.equal(f.el('lever-left').attributes['aria-label'], '抽獎項');
+    assert.equal(f.el('lever-left').disabled, false);
     assert.match(f.el('queue-list').children[0].textContent, /小明/);
     f.update({ queue: ['other', 'me'], players: { me: { name: '小明' }, other: { name: '小華' } } });
     assert.match(f.el('queue-list').children[0].textContent, /小華/);
-    assert.equal(f.el('prize-control').disabled, true);
-    await f.el('prize-control').fire('click'); assert.equal(f.commands.length, 0);
+    assert.equal(f.el('lever-left').disabled, true);
+    await f.el('lever-left').fire('click'); assert.equal(f.commands.length, 0);
     const host = await pageFixture({ dealer: true });
-    assert.equal(host.el('prize-control').disabled, true);
-    await host.el('prize-control').fire('click'); assert.equal(host.commands.length, 0);
+    assert.equal(host.el('lever-left').disabled, true);
+    await host.el('lever-left').fire('click'); assert.equal(host.commands.length, 0);
 });
 test('accepted manual stop partially returns lever and only the visual stop time returns it fully', async () => {
     const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
@@ -362,11 +398,11 @@ test('reel stop error persists across unrelated success and clears when that sto
     const f = await pageFixture({ state: { players: { me: { name: '小明' } } } });
     const round = { id: 1, playerId: 'me', playerName: '小明', options: { prize: f.current.prizes, quantity: f.current.quantities },
         reels: { prize: { planId: 'p', stop: null }, quantity: null } };
-    f.update({ round }); f.el('prize-control').fire('click');
+    f.update({ round }); f.el('lever-left').fire('click');
     await f.reply(0, { success: false, message: '停止操作未成功，請再試一次。' });
     f.update();
     assert.equal(f.el('draw-status').dataset.kind, 'error');
-    f.el('quantity-control').fire('click'); await f.reply();
+    f.el('lever-right').fire('click'); await f.reply();
     assert.equal(f.el('draw-status-message').textContent, '停止操作未成功，請再試一次。');
     f.update({ round: { ...round, reels: { ...round.reels, prize: { planId: 'p', stop: { source: 'auto', stopAt: 3500 } } } } });
     assert.equal(f.el('draw-status').dataset.kind, 'spinning');

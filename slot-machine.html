@@ -102,9 +102,11 @@
             <div id="dealer-share-info" class="w-full text-center border-b border-gray-200 pb-4">
                <h4 class="font-bold text-left text-lg mb-2">刷讀QR Code排隊加入</h4>
                <div class="room-share-row">
-                 <div id="qrcode" class="bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
+                 <button id="qr-enlarge" type="button" aria-label="放大 QR Code，供玩家掃描加入" aria-haspopup="dialog" aria-controls="qr-dialog" disabled>
+                 <span id="qrcode" class="bg-white p-2 w-32 h-32 rounded flex justify-center items-center text-gray-400">
                    <span class="text-xs">QR Code 生成中</span>
-                 </div>
+                 </span>
+                 </button>
                  <textarea id="room-url-input" readonly aria-label="分享活動網址" spellcheck="false" class="input-field text-xs"></textarea>
                </div>
              </div>
@@ -142,19 +144,56 @@
                         <div class="reel-window-trim" aria-hidden="true"><span class="reel-divider"></span></div>
                     </div>
                     <div id="window-reveal-glow" class="window-reveal-glow" aria-hidden="true"></div>
-                    <button id="lever-left" type="button" class="lever" aria-label="啟動獎項滾輪" disabled><span class="lever-drum" aria-hidden="true"></span><span class="lever-art lever-socket" aria-hidden="true"></span><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
-                    <button id="lever-right" type="button" class="lever" aria-label="啟動數量滾輪" disabled><span class="lever-drum" aria-hidden="true"></span><span class="lever-art lever-socket" aria-hidden="true"></span><span class="lever-art lever-shaft" aria-hidden="true"></span><span class="lever-art lever-ball" aria-hidden="true"></span></button>
+                    <button id="lever-left" type="button" class="lever" aria-label="啟動獎項滾輪" disabled>
+                        <span class="lever-drum" aria-hidden="true"></span>
+                        <span class="lever-art lever-socket" aria-hidden="true"></span>
+                        <span class="lever-shaft" aria-hidden="true"><span class="lever-art lever-shaft-art"></span></span>
+                        <span class="lever-head" aria-hidden="true">
+                            <span class="lever-art lever-collar"></span>
+                            <span class="lever-sphere">
+                                <span class="lever-ball-fill"><img src="assets/design/lever-ball-complete-v1.png" alt="" width="1254" height="1254" draggable="false"></span>
+                                <span class="lever-ball-detail"><span class="lever-art lever-ball"></span></span>
+                            </span>
+                        </span>
+                    </button>
+                    <button id="lever-right" type="button" class="lever" aria-label="啟動數量滾輪" disabled>
+                        <span class="lever-drum" aria-hidden="true"></span>
+                        <span class="lever-art lever-socket" aria-hidden="true"></span>
+                        <span class="lever-shaft" aria-hidden="true"><span class="lever-art lever-shaft-art"></span></span>
+                        <span class="lever-head" aria-hidden="true">
+                            <span class="lever-art lever-collar"></span>
+                            <span class="lever-sphere">
+                                <span class="lever-ball-fill"><img src="assets/design/lever-ball-complete-v1.png" alt="" width="1254" height="1254" draggable="false"></span>
+                                <span class="lever-ball-detail"><span class="lever-art lever-ball"></span></span>
+                            </span>
+                        </span>
+                    </button>
                 </div>
-                <div class="machine-controls" role="group" aria-label="雙滾輪操作">
-                    <button id="prize-control" type="button" class="machine-control" disabled>抽獎項</button>
-                    <button id="quantity-control" type="button" class="machine-control" disabled>抽數量</button>
-                </div>
-                <p class="machine-hint">點拉桿或下方按鈕開始，再點一次停止。</p>
+                <p class="machine-hint">請點拉桿開始，再點一次可急停。</p>
             </div>
             </div>
         </div>
     </div>
 
+<dialog id="qr-dialog" aria-labelledby="qr-dialog-title">
+    <div class="qr-dialog-content">
+        <h2 id="qr-dialog-title">掃描 QR Code 排隊加入</h2>
+        <div id="qr-enlarged" aria-label="加入此活動的 QR Code"></div>
+        <form method="dialog"><button class="btn btn-secondary" autofocus>關閉</button></form>
+    </div>
+</dialog>
+
+<script id="lever-art-ready">
+    // Enable the cut/occlusion only after the replacement sphere is usable.
+    // Register listeners before checking complete to include cached images.
+    document.querySelectorAll('.lever-ball-fill img').forEach(image => {
+        const head = image.closest('.lever-head');
+        const update = () => head.classList.toggle('ball-ready', image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+        image.addEventListener('load', update);
+        image.addEventListener('error', () => head.classList.remove('ball-ready'));
+        update();
+    });
+</script>
 <script src="game-protocol.js"></script>
 <script src="reel-motion.js"></script>
 <script src="server-clock.js"></script>

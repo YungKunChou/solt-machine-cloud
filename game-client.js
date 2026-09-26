@@ -224,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('error', errorText);
     function renderControls() {
         const me = state?.players[participantId];
+        el('qr-enlarge').disabled = !joined || !dealer;
+        if ((!joined || !dealer) && el('qr-dialog').open) el('qr-dialog').close();
         input.disabled = !joined || dealer || me?.removed || me?.completed || state?.round?.playerId === participantId;
         el('participant-name-field').hidden = dealer;
         input.placeholder = dealer ? '您是莊家，不參加抽獎' : me?.removed ? '目前為觀看模式' : '在此輸入姓名…';
@@ -236,17 +238,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const pulled = !returning && (moving || !visiblePlan && pendingReels.has(type));
             const enabled = joined && !dealer && !me?.removed && !me?.completed && !!me?.name && state?.queue[0] === participantId && !plan?.stop && !pendingReels.has(type);
             const label = type === 'prize' ? '獎項' : '數量';
-            const control = el(type + '-control');
             const controlText = pendingReels.has(type) ? '確認中…'
                 : !plan ? `抽${label}`
                 : plan.stop ? (moving ? '減速中…' : '已停止')
                 : `停止${label}`;
-            for (const button of [lever, control]) {
-                button.disabled = !enabled;
-                button.setAttribute('aria-disabled', String(!enabled));
-                button.setAttribute('aria-label', controlText.includes(label) ? controlText : `${label}：${controlText}`);
-            }
-            control.textContent = controlText;
+            lever.disabled = !enabled;
+            lever.setAttribute('aria-disabled', String(!enabled));
+            lever.setAttribute('aria-label', controlText.includes(label) ? controlText : `${label}：${controlText}`);
             lever.classList.toggle('pulled', pulled);
             lever.classList.toggle('returning', returning);
         }
@@ -350,13 +348,24 @@ document.addEventListener('DOMContentLoaded', () => {
             finally { if (actionGeneration === generation) { pendingReels.delete(type); renderControls(); } }
         };
         el(type === 'prize' ? 'lever-left' : 'lever-right').addEventListener('click', activate);
-        el(type + '-control').addEventListener('click', activate);
     }
     el('export-csv-btn').addEventListener('click', () => { if (dealer && state?.winners.length) window.LOTTERY_HISTORY.download(state.winners); });
     const share = new URL(location.href); share.search = ''; share.hash = ''; share.searchParams.set('room', roomId);
     el('room-url-input').value = share.href;
     el('qrcode').replaceChildren();
     new QRCode(el('qrcode'), share.href);
+    let enlargedQrReady = false;
+    el('qr-enlarge').addEventListener('click', () => {
+        if (!joined || !dealer || el('qr-dialog').open) return;
+        if (!enlargedQrReady) {
+            new QRCode(el('qr-enlarged'), { text: share.href, width: 640, height: 640, colorDark: '#000000', colorLight: '#ffffff' });
+            enlargedQrReady = true;
+        }
+        el('qr-dialog').showModal();
+    });
+    el('qr-dialog').addEventListener('click', event => {
+        if (event.target === el('qr-dialog')) el('qr-dialog').close();
+    });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) recover().catch(errorText); });
     window.addEventListener('pageshow', event => { if (event.persisted) recover().catch(errorText); });
     let lastWall = Date.now(), lastMono = performance.now();
