@@ -7,7 +7,7 @@
     const MAX_NAME_LENGTH = 120;
     function defaults() {
         return {
-            prizes: ['大杯美式咖啡', '特大美式咖啡', '大杯拿鐵咖啡', '特大拿鐵咖啡', '星巴克焦糖瑪奇朵'].map(name => ({ name })),
+            prizes: ['全家霜淇淋', '美式咖啡(大)', '拿鐵咖啡(大)', '特濃拿鐵(大)', '星巴克焦糖瑪奇朵'].map(name => ({ name })),
             quantities: ['1', '2', '3'].map(name => ({ name }))
         };
     }
